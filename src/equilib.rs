@@ -47,7 +47,7 @@ pub struct EquilibInform {
 /// (This is similar to the algorithm used in MC77, but is a complete
 /// reimplementation from the above paper to ensure it is 100% STFC
 /// copyright and can be released as open source)
-pub(crate) fn inf_norm_equilib_sym(
+pub fn equilib_scale_sym(
     n: usize,
     ptr: &[usize],
     row: &[usize],
@@ -56,6 +56,8 @@ pub(crate) fn inf_norm_equilib_sym(
     options: &EquilibOptions,
     inform: &mut EquilibInform,
 ) {
+    inform.flag = 0; // Initialize to success
+
     let mut maxentry = vec![0.0; n];
 
     scaling.fill(1.0);
@@ -75,7 +77,7 @@ pub(crate) fn inf_norm_equilib_sym(
         }
 
         // Update scaling (but beware empty cols)
-        for (s, &m) in zip(scaling, &maxentry) {
+        for (s, &m) in zip(scaling.iter_mut(), &maxentry) {
             if m > 0.0 {
                 *s /= m.sqrt();
             }
@@ -110,7 +112,7 @@ pub(crate) fn inf_norm_equilib_sym(
 /// (This is similar to the algorithm used in MC77, but is a complete
 /// reimplementation from the above paper to ensure it is 100% STFC
 /// copyright and can be released as open source)
-fn inf_norm_equilib_unsym(
+pub fn equilib_scale_unsym(
     m: usize,
     n: usize,
     ptr: &[usize],
@@ -121,6 +123,8 @@ fn inf_norm_equilib_unsym(
     options: &EquilibOptions,
     inform: &mut EquilibInform,
 ) {
+    inform.flag = 0; // Initialize to success
+
     let mut rmaxentry = vec![0.0; m];
     let mut cmaxentry = vec![0.0; n];
 
@@ -142,12 +146,12 @@ fn inf_norm_equilib_unsym(
         }
 
         // Update scaling (but beware empty rows/cols)
-        for (r, &m) in zip(rscaling, &rmaxentry) {
+        for (r, &m) in zip(rscaling.iter_mut(), &rmaxentry) {
             if m > 0.0 {
                 *r /= m.sqrt();
             }
         }
-        for (c, &m) in zip(cscaling, &cmaxentry) {
+        for (c, &m) in zip(cscaling.iter_mut(), &cmaxentry) {
             if m > 0.0 {
                 *c /= m.sqrt();
             }

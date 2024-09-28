@@ -1,6 +1,8 @@
 // Hungarian Algorithm implementation (MC64)
 
 use crate::errcode::{ERROR_SINGULAR, WARNING_SINGULAR};
+use crate::matrix_util::half_to_full;
+use crate::postproc::match_postproc;
 use std::iter::zip;
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -16,13 +18,132 @@ pub struct HungarianInform {
     pub matched: usize,
 }
 
-/// This function wraps the core algorithm of `hungarian_match()`. It provides
-/// pre- and post-processing to transform a maximum product assignment to a
-/// minimum sum assignment problem (and back again). It also has post-processing
-/// to handle the case of a structurally singular matrix as per Duff and Pralet
-/// (though the efficacy of such an approach is disputed!).
+/// Find a matching-based symmetric scaling using the Hungarian algorithm.
 ///
-/// This code is adapted from HSL_MC64 v2.3.1
+/// The scaled matrix is such that the entry of maximum absolute value in each
+/// row and column is `1.0`.
+pub fn hungarian_scale_sym(
+    n: usize,
+    ptr: &[usize],
+    row: &[usize],
+    val: &[f64],
+    scaling: &mut [f64],
+    options: &HungarianOptions,
+    inform: &mut HungarianInform,
+    match_result: Option<&mut [i32]>,
+) {
+    inform.flag = 0; // Initialize to success
+
+    let mut rscaling = vec![0.0; n];
+    let mut cscaling = vec![0.0; n];
+
+    match match_result {
+        Some(match_vec) => {
+            hungarian_wrapper(
+                true,
+                n,
+                n,
+                ptr,
+                row,
+                val,
+                match_vec,
+                &mut rscaling,
+                &mut cscaling,
+                options,
+                inform,
+            );
+        }
+        None => {
+            let mut perm = vec![0; n];
+            hungarian_wrapper(
+                true,
+                n,
+                n,
+                ptr,
+                row,
+                val,
+                &mut perm,
+                &mut rscaling,
+                &mut cscaling,
+                options,
+                inform,
+            );
+        }
+    }
+
+    for i in 0..n {
+        scaling[i] = ((rscaling[i] + cscaling[i]) / 2.0).exp();
+    }
+}
+
+/// Scales an unsymmetric matrix using the Hungarian algorithm.
+///
+/// # Arguments
+/// * `m` - number of rows
+/// * `n` - number of columns
+/// * `ptr` - column pointers of A
+/// * `row` - row indices of A (lower triangle)
+/// * `val` - entries of A (in same order as in row)
+/// * `rscaling` - output row scaling factors
+/// * `cscaling` - output column scaling factors
+/// * `options` - options for the Hungarian algorithm
+/// * `inform` - output information about the execution
+/// * `match` - optional output matching
+pub fn hungarian_scale_unsym(
+    m: usize,
+    n: usize,
+    ptr: &[usize],
+    row: &[usize],
+    val: &[f64],
+    rscaling: &mut [f64],
+    cscaling: &mut [f64],
+    options: &HungarianOptions,
+    inform: &mut HungarianInform,
+    match_out: Option<&mut [i32]>,
+) {
+    inform.flag = 0; // Initialize to success
+
+    // Call main routine
+    match match_out {
+        Some(match_result) => {
+            hungarian_wrapper(
+                false,
+                m,
+                n,
+                ptr,
+                row,
+                val,
+                match_result,
+                rscaling,
+                cscaling,
+                options,
+                inform,
+            );
+        }
+        None => {
+            let mut perm = vec![0; m];
+            hungarian_wrapper(
+                false, m, n, ptr, row, val, &mut perm, rscaling, cscaling, options, inform,
+            );
+        }
+    }
+
+    // Apply post processing
+    for r in rscaling.iter_mut() {
+        *r = r.exp();
+    }
+    for c in cscaling.iter_mut() {
+        *c = c.exp();
+    }
+}
+
+// This function wraps the core algorithm of `hungarian_match()`. It provides
+// pre- and post-processing to transform a maximum product assignment to a
+// minimum sum assignment problem (and back again). It also has post-processing
+// to handle the case of a structurally singular matrix as per Duff and Pralet
+// (though the efficacy of such an approach is disputed!).
+//
+// This code is adapted from HSL_MC64 v2.3.1
 fn hungarian_wrapper(
     sym: bool,
     m: usize,
@@ -74,7 +195,7 @@ fn hungarian_wrapper(
     ptr2[n] = klong;
 
     if sym {
-        half_to_full(n, &mut row2, &mut ptr2, &mut iw, Some(&mut val2));
+        half_to_full(n, &mut row2, &mut ptr2, &mut iw, Some(&mut val2), true);
     }
 
     // Compute column maximums
@@ -118,7 +239,7 @@ fn hungarian_wrapper(
         // Unsymmetric or symmetric and full rank
         // Note that in this case m=n
         rscaling.copy_from_slice(&dualu[..m]);
-        for (c, (dv, &max)) in zip(cscaling, zip(dualv, &cmax)) {
+        for (c, (dv, &max)) in zip(cscaling.iter_mut(), zip(dualv, &cmax)) {
             *c = dv - max;
         }
         match_postproc(
@@ -259,11 +380,11 @@ fn hungarian_wrapper(
     cscaling.copy_from_slice(&rscaling[..n]);
 }
 
-/// Subroutine that initialize matching and (row) dual variable into a suitable
-/// state for main Hungarian algorithm.
-///
-/// The heuristic guarantees that the generated partial matching is optimal
-/// on the restriction of the graph to the matched rows and columns.
+// Subroutine that initialize matching and (row) dual variable into a suitable
+// state for main Hungarian algorithm.
+//
+// The heuristic guarantees that the generated partial matching is optimal
+// on the restriction of the graph to the matched rows and columns.
 fn hungarian_init_heuristic(
     m: usize,
     n: usize,
@@ -413,21 +534,26 @@ fn hungarian_init_heuristic(
     }
 }
 
-/// Provides the core Hungarian Algorithm implementation for solving the
-/// minimum sum assignment problem as per Duff and Koster.
-///
-/// This code is adapted from MC64 v 1.6.0
-pub fn hungarian_match(
-    m: usize,      // number of rows
-    n: usize,      // number of cols
-    ptr: &[usize], // column pointers
-    row: &[usize], // row pointers
+// Provides the core Hungarian Algorithm implementation for solving the
+// minimum sum assignment problem as per Duff and Koster.
+//
+// This code is adapted from MC64 v 1.6.0
+fn hungarian_match(
+    m: usize,          // number of rows
+    n: usize,          // number of cols
+    ptr: &[usize],     // column pointers
+    row: &[usize],     // row pointers
     val: &[f64], // value of the entry that corresponds to row[k]. All values val[k] must be non-negative.
-) -> Result<(Vec<i32>, usize, Vec<f64>, Vec<f64>), Box<dyn std::error::Error>> {
-    let mut iperm = vec![-1; m]; // matching itself: row i is matched to column iperm[i]
-    let mut num = 0; // cardinality of the matching
-    let mut dualu = vec![0.0; m]; // dualu[i] is the reduced weight for row[i]
-    let mut dualv = vec![0.0; n]; // dualv[j] is the reduced weight for col[j]
+    iperm: &mut [i32], // matching itself: row i is matched to column iperm[i]
+    num: &mut usize, // cardinality of the matching
+    dualu: &mut [f64], // dualu[i] is the reduced weight for row[i]
+    dualv: &mut [f64], // dualv[j] is the reduced weight for col[j]
+) {
+    // ) -> Result<(Vec<i32>, usize, Vec<f64>, Vec<f64>), Box<dyn std::error::Error>> {
+    // let mut iperm = vec![-1; m]; // matching itself: row i is matched to column iperm[i]
+    // let mut num = 0; // cardinality of the matching
+    // let mut dualu = vec![0.0; m]; // dualu[i] is the reduced weight for row[i]
+    // let mut dualv = vec![0.0; n]; // dualv[j] is the reduced weight for col[j]
 
     // a[jperm[j]] is entry of A for matching in column j.
     let mut jperm = vec![0; n];
@@ -453,17 +579,18 @@ pub fn hungarian_match(
         ptr,
         row,
         val,
-        &mut num,
-        &mut iperm,
+        num,
+        iperm,
         &mut jperm,
-        &mut dualu,
+        dualu,
         &mut d,
         &mut longwork,
         &mut out,
     );
 
-    if num == usize::min(m, n) {
-        return Ok((iperm, num, dualu, dualv)); // If we got a complete matching, we're done  TODO: check go to 1000
+    if *num == usize::min(m, n) {
+        // return Ok((iperm, num, dualu, dualv)); // If we got a complete matching, we're done  TODO: check go to 1000
+        return; // If we got a complete matching, we're done  TODO: check go to 1000
     }
 
     // Repeatedly find augmenting paths until all columns are included in the
@@ -486,7 +613,7 @@ pub fn hungarian_match(
         // row[isp]. The corresponding column index is jsp.
         let mut csp = f64::INFINITY;
         // Build shortest path tree starting from unassigned column (root) jord
-        let mut j = jord;
+        let j = jord;
         let mut isp = 0;
         let mut jsp = 0;
         pr[j] = !0; // Using !0 (maximum value) as -1 for usize
@@ -513,7 +640,7 @@ pub fn hungarian_match(
         }
 
         // Initialize heap Q and Q2 with rows held in longwork[:qlen]
-        let mut q0 = qlen;
+        let q0 = qlen;
         qlen = 0;
         for kk in 0..q0 {
             let klong = longwork[kk];
@@ -537,7 +664,7 @@ pub fn hungarian_match(
         }
 
         // Main loop for finding augmenting paths
-        'outer: for _ in 0..num {
+        for _ in 0..*num {
             // If Q2 is empty, extract rows from Q
             if low == up {
                 if qlen == 0 {
@@ -628,14 +755,14 @@ pub fn hungarian_match(
         }
 
         // Find augmenting path by tracing backward in pr; update iperm,jperm
-        num += 1;
+        *num += 1;
         let mut i = row[isp];
         iperm[i] = jsp as i32;
         jperm[jsp] = isp;
         let mut j = jsp;
 
         // loop {
-        for _ in 0..num {
+        for _ in 0..*num {
             let jj = pr[j];
             if jj == !0 {
                 break;
@@ -685,7 +812,7 @@ pub fn hungarian_match(
     }
 
     // Complete iperm for structurally singular matrix
-    if num != usize::min(m, n) {
+    if *num != usize::min(m, n) {
         jperm.fill(0);
         let mut k = 0;
         for i in 0..m {
@@ -708,5 +835,120 @@ pub fn hungarian_match(
         }
     }
 
-    Ok((iperm, num, dualu, dualv))
+    // Ok((iperm, num, dualu, dualv))
+}
+
+// Update the position of an element in the heap when its value has decreased.
+//
+// This function is adapted from MC64 v 1.6.0
+fn heap_update(idx: usize, _n: usize, q: &mut [usize], val: &[f64], l: &mut [usize]) {
+    // Get current position of i in heap.
+    let mut pos = l[idx];
+    if pos <= 1 {
+        // idx is already at root of heap, but set q as it may have only just been inserted.
+        q[pos - 1] = idx;
+        return;
+    }
+
+    // Keep trying to move i towards root of heap until it can't go any further
+    let v = val[idx];
+    while pos > 1 {
+        let parent_pos = pos / 2;
+        let parent_idx = q[parent_pos - 1];
+        // If parent is better than idx, stop moving
+        if v >= val[parent_idx] {
+            break;
+        }
+        // Otherwise, swap idx and parent
+        q[pos - 1] = parent_idx;
+        l[parent_idx] = pos;
+        pos = parent_pos;
+    }
+    // Finally set idx in the place it reached.
+    q[pos - 1] = idx;
+    l[idx] = pos;
+}
+
+// Remove and return the root node from the binary heap.
+//
+// This function is adapted from MC64 v 1.6.0
+fn heap_pop(qlen: &mut usize, n: usize, q: &mut [usize], val: &[f64], l: &mut [usize]) -> usize {
+    // Return value is the old root of the heap
+    let root = q[0];
+
+    // Delete the root
+    heap_delete(1, qlen, n, q, val, l);
+
+    root
+}
+
+// Delete an element at a given position from the heap.
+//
+// This function is adapted from MC64 v 1.6.0
+fn heap_delete(
+    pos0: usize,
+    qlen: &mut usize,
+    _n: usize,
+    q: &mut [usize],
+    d: &[f64],
+    l: &mut [usize],
+) {
+    // If we're trying to remove the last item, just delete it.
+    if *qlen == pos0 {
+        *qlen -= 1;
+        return;
+    }
+
+    // Replace index in position pos0 with last item and fix heap property
+    let idx = q[*qlen - 1];
+    let v = d[idx];
+    *qlen -= 1; // shrink heap
+    let mut pos = pos0; // pos is current position of node I in the tree
+
+    // Move up if appropriate
+    if pos > 1 {
+        loop {
+            let parent = pos / 2;
+            let qk = q[parent - 1];
+            if v >= d[qk] {
+                break;
+            }
+            q[pos - 1] = qk;
+            l[qk] = pos;
+            pos = parent;
+            if pos <= 1 {
+                break;
+            }
+        }
+    }
+    q[pos - 1] = idx;
+    l[idx] = pos;
+    if pos != pos0 {
+        return; // Item moved up, hence doesn't need to move down
+    }
+
+    // Otherwise, move item down
+    loop {
+        let mut child = 2 * pos;
+        if child > *qlen {
+            break;
+        }
+        let mut dk = d[q[child - 1]];
+        if child < *qlen {
+            let dr = d[q[child]];
+            if dk > dr {
+                child += 1;
+                dk = dr;
+            }
+        }
+        if v <= dk {
+            break;
+        }
+        let qk = q[child - 1];
+        q[pos - 1] = qk;
+        l[qk] = pos;
+        pos = child;
+    }
+    q[pos - 1] = idx;
+    l[idx] = pos;
 }
