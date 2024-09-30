@@ -36,6 +36,9 @@ mod hungarian;
 mod matrix_util;
 mod postproc;
 
+#[cfg(test)]
+mod tests;
+
 pub use auction::*;
 pub use equilib::*;
 pub use errcode::*;

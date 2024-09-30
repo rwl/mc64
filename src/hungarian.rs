@@ -11,7 +11,7 @@ pub struct HungarianOptions {
     pub scale_if_singular: bool,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct HungarianInform {
     pub flag: i32,
     pub stat: i32,

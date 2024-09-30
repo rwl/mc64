@@ -22,7 +22,7 @@ impl Default for AuctionOptions {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct AuctionInform {
     pub flag: i32,
     pub stat: i32,

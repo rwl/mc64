@@ -3,7 +3,11 @@ name = "mc64"
 version = "0.1.0"
 description = "Sparse matrix scalings"
 license = "BSD-3-Clause"
+repository = "https://github.com/rwl/mc64"
 edition = "2021"
 
 [dependencies]
 num-traits = "0.2"
+
+[dev-dependencies]
+spral = { path = "../spral" }

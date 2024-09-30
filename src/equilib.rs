@@ -24,7 +24,7 @@ impl Default for EquilibOptions {
 }
 
 /// Used to return information about the execution of the algorithm.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct EquilibInform {
     /// Gives the exit status of the algorithm.
     pub flag: i32,
