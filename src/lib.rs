@@ -43,3 +43,29 @@ pub use auction::*;
 pub use equilib::*;
 pub use errcode::*;
 pub use hungarian::*;
+
+/// Calculate scaled symmetric matrix.
+pub fn scale_matrix_sym(n: usize, ptr: &[usize], row: &[usize], val: &mut [f64], scaling: &[f64]) {
+    for i in 0..n {
+        for j in ptr[i]..ptr[i + 1] {
+            val[j] = scaling[row[j]] * val[j] * scaling[i];
+        }
+    }
+}
+
+/// Calculate scaled unsymmetric matrix.
+pub fn scale_matrix_unsym(
+    _m: usize,
+    n: usize,
+    ptr: &[usize],
+    row: &[usize],
+    val: &mut [f64],
+    rscaling: &[f64],
+    cscaling: &[f64],
+) {
+    for i in 0..n {
+        for j in ptr[i]..ptr[i + 1] {
+            val[j] = rscaling[row[j]] * val[j] * cscaling[i];
+        }
+    }
+}

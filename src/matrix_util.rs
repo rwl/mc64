@@ -35,40 +35,41 @@ pub(crate) fn half_to_full(
     // on exit, a will hold the values of the entries in the expanded
     // structure corresponding to the output values of row.
     mut a: Option<&mut [f64]>,
-    cbase: bool,
+    // cbase: bool,
 ) {
-    let rebase = if cbase { 1 } else { 0 };
+    // let rebase = if cbase { 1 } else { 0 };
 
-    let oldtau = ptr[n] - 1 + rebase;
+    let oldtau = ptr[n]; // number of entries in symmetric storage
     iw[..n].fill(0);
 
     // iw[j] set to total number entries in col. j of expanded mx.
-    let mut ndiag = 0;
+    let mut ndiag = 0; // number diagonal entries present
     for j in 0..n {
-        let i1 = ptr[j] + rebase;
-        let i2 = ptr[j + 1] - 1 + rebase;
-        iw[j] += (i2 - i1 + 1) as i32;
-        for ii in i1..=i2 {
-            let i = row[ii] + rebase;
-            if i != j + rebase {
-                iw[i - rebase] += 1; // TODO: check rebase
+        let i1 = ptr[j];
+        let i2 = ptr[j + 1];
+        iw[j] += (i2 - i1) as i32;
+        for ii in i1..i2 {
+            let i = row[ii];
+            if i != j {
+                iw[i] += 1;
             } else {
                 ndiag += 1;
             }
         }
     }
-
+    // number of entries in expanded storage
     let newtau = 2 * oldtau - ndiag;
     // ipkp1 points to position after end of column being currently processed
-    let mut ipkp1 = oldtau + 1;
+    let mut ipkp1 = oldtau; /* + 1;*/
     // ckp1 points to position after end of same column in expanded structure
-    let mut ckp1 = newtau + 1;
+    let mut ckp1 = newtau; /* + 1;*/
 
     // go through the array in the reverse order placing lower triangular
     // elements in appropriate slots.
     for j in (0..n).rev() {
-        let i1 = ptr[j] + rebase;
+        let i1 = ptr[j];
         let i2 = ipkp1;
+        // number of entries in col. j of original structure
         let lenk = i2 - i1;
         // jstart is running pointer to position in new structure
         let mut jstart = ckp1;
@@ -79,23 +80,23 @@ pub(crate) fn half_to_full(
         // run through columns in reverse order
         // lower triangular part of col. moved to end of same column in expanded form
         if let Some(a) = a.as_mut() {
-            for ii in (i1..=i2).rev() {
+            for ii in (i1..i2).rev() {
                 jstart -= 1;
                 a[jstart] = a[ii];
-                row[jstart] = row[ii]; // rebase cancels
+                row[jstart] = row[ii];
             }
         } else {
-            for ii in (i1..=i2).rev() {
+            for ii in (i1..i2).rev() {
                 jstart -= 1;
-                row[jstart] = row[ii]; // rebase cancels
+                row[jstart] = row[ii];
             }
         }
 
         // ptr is set to position of first entry in lower triangular part of
         // column j in expanded form
-        ptr[j] = jstart - rebase;
+        ptr[j] = jstart;
         // set ckp1 for next column
-        ckp1 = ckp1 - iw[j] as usize;
+        ckp1 -= iw[j] as usize;
         // reset iw[j] to number of entries in lower triangle of column.
         iw[j] = lenk as i32;
     }
@@ -104,33 +105,32 @@ pub(crate) fn half_to_full(
     // time when one is handling column j the upper triangular
     // elements a(j,i) are put in position.
     for j in (0..n).rev() {
-        let i1 = ptr[j] + rebase;
-        let i2 = ptr[j] + iw[j] as usize - 1 + rebase;
+        let i1 = ptr[j];
+        let i2 = ptr[j] + iw[j] as usize;
         // run down column in order
         // note that i is always greater than or equal to j
         if let Some(a) = a.as_mut() {
-            for ii in i1..=i2 {
-                let i = row[ii] + rebase;
-                // TODO: check rebase
-                if i == j + rebase {
+            for ii in i1..i2 {
+                let i = row[ii];
+                if i == j {
                     continue;
                 }
-                ptr[i - rebase] -= 1; // rebase cancels
-                let ipos = ptr[i - rebase];
+                ptr[i] -= 1;
+                let ipos = ptr[i];
                 a[ipos] = a[ii];
-                row[ipos] = j - rebase;
+                row[ipos] = j;
             }
         } else {
-            for ii in i1..=i2 {
-                let i = row[ii] as usize + rebase;
-                if i == j + rebase {
+            for ii in i1..i2 {
+                let i = row[ii];
+                if i == j {
                     continue;
                 }
-                ptr[i - rebase] -= 1; // rebase cancels  TODO: check rebase
-                let ipos = ptr[i - rebase];
-                row[ipos] = j - rebase;
+                ptr[i] -= 1;
+                let ipos = ptr[i];
+                row[ipos] = j;
             }
         }
     }
-    ptr[n] = newtau + 1 - rebase;
+    ptr[n] = newtau;
 }

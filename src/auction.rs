@@ -1,7 +1,7 @@
 use crate::matrix_util::half_to_full;
 use crate::postproc::match_postproc;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct AuctionOptions {
     pub array_base: usize, // Not in Fortran type
     pub max_iterations: usize,
@@ -22,7 +22,7 @@ impl Default for AuctionOptions {
     }
 }
 
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone)]
 pub struct AuctionInform {
     pub flag: i32,
     pub stat: i32,
@@ -173,6 +173,13 @@ fn auction_match_core(
     options: &AuctionOptions,
     inform: &mut AuctionInform,
 ) {
+    let ptr = &ptr[..n + 1];
+    let row = &row[..ptr[n]];
+    let val = &val[..ptr[n]];
+    let match_result = &mut match_result[..n];
+    let dualu = &mut dualu[..m];
+    let dualv = &mut dualv[..n];
+
     inform.flag = 0;
     inform.unmatchable = 0;
 
@@ -312,10 +319,15 @@ fn auction_match(
     options: &AuctionOptions,
     inform: &mut AuctionInform,
 ) {
+    let ptr = &ptr[..n + 1];
+    let match_result = &mut match_result[..m];
+    let rscaling = &mut rscaling[..m];
+    let cscaling = &mut cscaling[..n];
+
     inform.flag = 0;
 
     // Reset ne for the expanded symmetric matrix
-    let mut ne = ptr[n] - 1;
+    let mut ne = ptr[n]; // - 1;
     ne = 2 * ne;
 
     // Expand matrix, drop explicit zeroes and take log absolute values
@@ -346,7 +358,13 @@ fn auction_match(
             return;
         }
         let mut iw = vec![0; 5 * n];
-        half_to_full(n, &mut row2, &mut ptr2, &mut iw, Some(&mut val2), true);
+        half_to_full(
+            n,
+            &mut row2,
+            &mut ptr2,
+            &mut iw,
+            Some(&mut val2), /*, true*/
+        );
     }
 
     // Compute column maximums

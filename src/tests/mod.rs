@@ -1,10 +1,20 @@
-use spral::matrix_util::{REAL_RECT, REAL_SYM_INDEF};
-use spral::random::random_integer;
-use spral::random_matrix::{random_matrix_generate, NONSINGULAR, SORT};
+// use spral::matrix_util::{REAL_RECT, REAL_SYM_INDEF};
+// use spral::random::random_integer;
+// use spral::random_matrix::{random_matrix_generate, NONSINGULAR, SORT};
+
+// use crate::tests::random::random_integer32 as random_integer;
+// use crate::tests::random_matrix::{
+//     random_matrix_generate32 as random_matrix_generate, REAL_SYM_INDEF,
+// };
+
+use crate::tests::random::RandomState;
+use crate::tests::random_matrix::{random_matrix_generate, REAL_RECT, REAL_SYM_INDEF};
 
 mod auction;
 mod equilib;
 mod hungarian;
+mod random;
+mod random_matrix;
 
 struct MatrixType {
     n: usize,
@@ -15,7 +25,7 @@ struct MatrixType {
 }
 
 /// Generate a random symmetric matrix
-fn gen_random_sym(a: &mut MatrixType, nza: usize, state: &mut u32, zr: Option<usize>) {
+fn gen_random_sym(a: &mut MatrixType, nza: usize, state: &mut RandomState, zr: Option<usize>) {
     // Generate a
     // let mut flag = 0;
     random_matrix_generate(
@@ -28,7 +38,9 @@ fn gen_random_sym(a: &mut MatrixType, nza: usize, state: &mut u32, zr: Option<us
         &mut a.row,
         // &mut flag,
         Some(&mut a.val),
-        NONSINGULAR | SORT,
+        // NONSINGULAR | SORT,
+        Some(true),
+        Some(true),
     );
     // if flag != 0 {
     //     println!("Bad flag from random_matrix_generate()");
@@ -49,7 +61,7 @@ fn gen_random_sym(a: &mut MatrixType, nza: usize, state: &mut u32, zr: Option<us
         // Put some zeros on diagonal, observing first entry in column
         // is always the diagonal after sorting
         // but don't have all zeros in the col.
-        let l = random_integer(state, a.n / 2);
+        let l = state.random_integer(a.n / 2);
         for k in (0..a.n).step_by(l.max(1)) {
             if a.ptr[k + 1] > a.ptr[k] + 1 {
                 let i = a.ptr[k];
@@ -65,7 +77,7 @@ fn gen_random_sym(a: &mut MatrixType, nza: usize, state: &mut u32, zr: Option<us
 }
 
 /// Generate a random unsymmetric matrix
-fn gen_random_unsym(a: &mut MatrixType, nza: usize, state: &mut u32) {
+fn gen_random_unsym(a: &mut MatrixType, nza: usize, state: &mut RandomState) {
     // Generate a
     // let mut flag = 0;
     random_matrix_generate(
@@ -78,7 +90,9 @@ fn gen_random_unsym(a: &mut MatrixType, nza: usize, state: &mut u32) {
         &mut a.row,
         // &mut flag,
         Some(&mut a.val),
-        NONSINGULAR | SORT,
+        // NONSINGULAR | SORT,
+        Some(true),
+        Some(true),
     );
     // if flag != 0 {
     //     println!("Bad flag from random_matrix_generate()");
@@ -86,8 +100,10 @@ fn gen_random_unsym(a: &mut MatrixType, nza: usize, state: &mut u32) {
 
     // make sure we have some large entries
     let mut k = 0;
-    while k < a.ptr[a.n] - 1 {
+    while k < a.ptr[a.n]
+    /*- 1*/
+    {
         a.val[k] *= 1000.0;
-        k += random_integer(state, 5);
+        k += state.random_integer(5);
     }
 }

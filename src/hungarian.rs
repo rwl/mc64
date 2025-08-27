@@ -5,13 +5,13 @@ use crate::matrix_util::half_to_full;
 use crate::postproc::match_postproc;
 use std::iter::zip;
 
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone)]
 pub struct HungarianOptions {
     pub array_base: usize, // Not in Fortran type
     pub scale_if_singular: bool,
 }
 
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone)]
 pub struct HungarianInform {
     pub flag: i32,
     pub stat: i32,
@@ -32,6 +32,8 @@ pub fn hungarian_scale_sym(
     inform: &mut HungarianInform,
     match_result: Option<&mut [i32]>,
 ) {
+    let ptr = &ptr[..n + 1];
+
     inform.flag = 0; // Initialize to success
 
     let mut rscaling = vec![0.0; n];
@@ -97,10 +99,12 @@ pub fn hungarian_scale_unsym(
     val: &[f64],
     rscaling: &mut [f64],
     cscaling: &mut [f64],
+    match_out: Option<&mut [i32]>,
     options: &HungarianOptions,
     inform: &mut HungarianInform,
-    match_out: Option<&mut [i32]>,
 ) {
+    let ptr = &ptr[..n + 1];
+
     inform.flag = 0; // Initialize to success
 
     // Call main routine
@@ -157,11 +161,16 @@ fn hungarian_wrapper(
     options: &HungarianOptions,
     inform: &mut HungarianInform,
 ) {
+    let ptr = &ptr[..n + 1];
+    let match_result = &mut match_result[..m];
+    let rscaling = &mut rscaling[..m];
+    let cscaling = &mut cscaling[..n];
+
     assert_eq!(ptr.len(), n + 1);
 
     inform.flag = 0;
     inform.stat = 0;
-    let mut ne = ptr[n] - 1;
+    let mut ne = ptr[n]; // - 1; zero-based
 
     // Reset ne for the expanded symmetric matrix
     ne = 2 * ne;
@@ -195,7 +204,13 @@ fn hungarian_wrapper(
     ptr2[n] = klong;
 
     if sym {
-        half_to_full(n, &mut row2, &mut ptr2, &mut iw, Some(&mut val2), true);
+        half_to_full(
+            n,
+            &mut row2,
+            &mut ptr2,
+            &mut iw,
+            Some(&mut val2), /*, true*/
+        );
     }
 
     // Compute column maximums
@@ -402,13 +417,21 @@ fn hungarian_init_heuristic(
     // position we have reached in current search
     search_from: &mut [usize],
 ) {
-    assert_eq!(ptr.len(), n + 1);
-    assert_eq!(row.len(), n);
-    assert_eq!(val.len(), n);
-    assert_eq!(dualu.len(), m);
-    assert_eq!(d.len(), n);
-    assert_eq!(l.len(), m);
-    assert_eq!(search_from.len(), n);
+    let ptr = &ptr[..n + 1];
+    let row = &row[..ptr[n]];
+    let val = &val[..ptr[n]];
+    let dualu = &mut dualu[..m];
+    let d = &mut d[..n];
+    let l = &mut l[..m];
+    let search_from = &mut search_from[..n];
+
+    // assert_eq!(ptr.len(), n + 1);
+    // assert_eq!(row.len(), n);
+    // assert_eq!(val.len(), n);
+    // assert_eq!(dualu.len(), m);
+    // assert_eq!(d.len(), n);
+    // assert_eq!(l.len(), m);
+    // assert_eq!(search_from.len(), n);
 
     // Set up initial matching on smallest entry in each row (as far as possible)
     //
@@ -549,6 +572,13 @@ fn hungarian_match(
     dualu: &mut [f64], // dualu[i] is the reduced weight for row[i]
     dualv: &mut [f64], // dualv[j] is the reduced weight for col[j]
 ) {
+    let ptr = &ptr[..n + 1];
+    let row = &row[..ptr[n]];
+    let iperm = &mut iperm[..m];
+    let val = &val[..ptr[n]];
+    let dualu = &mut dualu[..m];
+    let dualv = &mut dualv[..n];
+
     // ) -> Result<(Vec<i32>, usize, Vec<f64>, Vec<f64>), Box<dyn std::error::Error>> {
     // let mut iperm = vec![-1; m]; // matching itself: row i is matched to column iperm[i]
     // let mut num = 0; // cardinality of the matching
@@ -808,30 +838,6 @@ fn hungarian_match(
     for i in 0..m {
         if iperm[i] == -1 {
             dualu[i] = 0.0;
-        }
-    }
-
-    // Complete iperm for structurally singular matrix
-    if *num != usize::min(m, n) {
-        jperm.fill(0);
-        let mut k = 0;
-        for i in 0..m {
-            if iperm[i] == -1 {
-                k += 1;
-                out[k - 1] = i;
-            } else {
-                let j = iperm[i] as usize;
-                jperm[j] = i;
-            }
-        }
-        k = 0;
-        for j in 0..n {
-            if jperm[j] != 0 {
-                continue;
-            }
-            k += 1;
-            let jdum = out[k - 1];
-            iperm[jdum] = -(j as i32) - 1;
         }
     }
 

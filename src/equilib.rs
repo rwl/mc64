@@ -4,7 +4,7 @@ use std::iter::zip;
 
 /// Used to specify options to the routines [equilib_scale_sym] and
 /// [equilib_scale_unsym].
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct EquilibOptions {
     pub array_base: usize, // Not in Fortran type
     /// Maximum number of iterations.
@@ -24,7 +24,7 @@ impl Default for EquilibOptions {
 }
 
 /// Used to return information about the execution of the algorithm.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone)]
 pub struct EquilibInform {
     /// Gives the exit status of the algorithm.
     pub flag: i32,

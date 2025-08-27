@@ -1,6 +1,6 @@
+use crate::tests::random::RandomState;
 use crate::tests::{gen_random_sym, gen_random_unsym, MatrixType};
 use crate::{equilib_scale_sym, equilib_scale_unsym, EquilibInform, EquilibOptions};
-use spral::random::{random_integer, INITIAL_SEED};
 
 /// Testing [equilib_scaling_sym] with random matrices.
 #[test]
@@ -12,30 +12,31 @@ pub fn test_equilib_sym_random() {
     let mut a = MatrixType {
         n: 0,
         m: 0,
-        ptr: vec![0; max_n + 1],
-        row: vec![0; 2 * max_nz],
-        val: vec![0.0; 2 * max_nz],
+        ptr: Vec::new(),
+        row: Vec::new(),
+        val: Vec::new(),
     };
 
-    let mut scaling = vec![0.0; max_n];
-    let mut rinf = vec![0.0; max_n];
+    let mut scaling = Vec::new();
+    let mut rinf = Vec::new();
 
     let options = EquilibOptions::default();
     let mut inform = EquilibInform::default();
 
-    let mut state = INITIAL_SEED;
+    // let mut state = INITIAL_SEED;
+    let mut state = RandomState::default();
 
     for prblm in 1..=n_prob {
         // Generate parameters
         a.n = if prblm < 21 {
             prblm
         } else {
-            random_integer(&mut state, max_n)
+            state.random_integer(max_n)
         };
-        let i = usize::max(0, (a.n.pow(2) / 2) - a.n);
-        let nza = a.n + random_integer(&mut state, i);
+        let i = (a.n.pow(2) / 2).checked_sub(a.n).unwrap_or(0);
+        let nza = a.n + state.random_integer(i);
 
-        print!(" - no. {} n = {} nza = {}...", prblm, a.n, nza);
+        println!(" - no. {} n = {} nza = {}...", prblm, a.n, nza);
 
         assert!(
             a.n <= max_n,
@@ -49,6 +50,13 @@ pub fn test_equilib_sym_random() {
             nza,
             max_nz
         );
+
+        a.ptr = vec![0; a.n + 1];
+        a.row = vec![0; nza];
+        a.val = vec![0.0; nza];
+
+        scaling = vec![0.0; a.n];
+        rinf = vec![0.0; a.n];
 
         gen_random_sym(&mut a, nza, &mut state, None);
 
@@ -89,38 +97,41 @@ fn test_equilib_unsym_random() {
     let max_nz = 1000000;
     let n_prob = 100;
 
-    let mut state = INITIAL_SEED;
+    // let mut state = INITIAL_SEED;
+    let mut state = RandomState::default();
 
     let mut a = MatrixType {
         n: 0,
         m: 0,
-        ptr: vec![0; max_n + 1],
-        row: vec![0; 2 * max_nz],
-        val: vec![0.0; 2 * max_nz],
+        ptr: Vec::new(),
+        row: Vec::new(),
+        val: Vec::new(),
     };
 
-    let mut rscaling = vec![0.0; max_n];
-    let mut cscaling = vec![0.0; max_n];
-    let mut rinf = vec![0.0; max_n];
+    let mut rscaling = Vec::new();
+    let mut cscaling = Vec::new();
+    let mut rinf = Vec::new();
 
     let options = EquilibOptions::default();
     let mut inform = EquilibInform::default();
 
     for prblm in 1..=n_prob {
         // Generate parameters
-        a.n = random_integer(&mut state, max_n);
-        a.m = random_integer(&mut state, max_n);
-        if random_integer(&mut state, 2) == 1 {
+        a.n = state.random_integer(max_n);
+        a.m = state.random_integer(max_n);
+        if state.random_integer(2) == 1 {
             a.m = a.n; // 50% chance of unsym vs rect
         }
         if prblm < 21 {
             a.n = prblm; // check very small problems
             a.m = prblm;
         }
-        let i = usize::max(0, a.m * a.n / 2 - usize::max(a.m, a.n));
-        let nza = usize::max(a.m, a.n) + random_integer(&mut state, i);
+        let i = (a.m * a.n / 2)
+            .checked_sub(usize::max(a.m, a.n))
+            .unwrap_or(0);
+        let nza = usize::max(a.m, a.n) + state.random_integer(i);
 
-        print!(" - no. {} m = {} n = {} nza = {}...", prblm, a.m, a.n, nza);
+        println!(" - no. {} m = {} n = {} nza = {}...", prblm, a.m, a.n, nza);
 
         assert!(
             a.n <= max_n,
@@ -141,6 +152,14 @@ fn test_equilib_unsym_random() {
             max_nz
         );
 
+        a.ptr = vec![0; a.n + 1];
+        a.row = vec![0; nza];
+        a.val = vec![0.0; nza];
+
+        rscaling = vec![0.0; a.m];
+        cscaling = vec![0.0; a.n];
+        rinf = vec![0.0; a.m];
+
         gen_random_unsym(&mut a, nza, &mut state);
 
         // Call scaling
@@ -159,7 +178,7 @@ fn test_equilib_unsym_random() {
 
         // Ensure inf norm of all scaled rows is close to 1.0
         rinf.fill(0.0);
-        for i in 0..a.n {
+        for i in 0..a.m {
             if a.ptr[i] == a.ptr[i + 1] {
                 continue; // Empty column
             }

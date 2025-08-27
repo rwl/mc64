@@ -1,6 +1,6 @@
+use crate::tests::random::RandomState;
 use crate::tests::{gen_random_sym, gen_random_unsym, MatrixType};
 use crate::{auction_scale_sym, auction_scale_unsym, AuctionInform, AuctionOptions};
-use spral::random::{random_integer, INITIAL_SEED};
 
 /// Testing `auction_scaling_sym` with random matrices.
 #[test]
@@ -10,20 +10,21 @@ fn test_auction_sym_random() {
     let n_prob = 100;
 
     // let mut rng = rand::thread_rng();
-    let mut state = INITIAL_SEED;
+    // let mut state = INITIAL_SEED;
+    let mut state = RandomState::default();
 
     let mut a = MatrixType {
         n: 0,
         m: 0,
-        ptr: vec![0; max_n + 1],
-        row: vec![0; 2 * max_nz],
-        val: vec![0.0; 2 * max_nz],
+        ptr: Vec::new(),
+        row: Vec::new(),
+        val: Vec::new(),
     };
 
-    let mut scaling = vec![0.0; max_n];
-    let mut match_result = vec![0; max_n];
-    let mut rmax = vec![0.0; max_n];
-    let mut cnt = vec![0; max_n];
+    let mut scaling = Vec::new();
+    let mut match_result = Vec::new();
+    let mut rmax = Vec::new();
+    let mut cnt = Vec::new();
 
     let options = AuctionOptions::default();
     let mut inform = AuctionInform::default();
@@ -33,12 +34,12 @@ fn test_auction_sym_random() {
         a.n = if prblm < 21 {
             prblm
         } else {
-            random_integer(&mut state, max_n)
+            state.random_integer(max_n)
         };
-        let i = usize::max(0, a.n.pow(2) / 2 - a.n);
-        let nza = a.n + random_integer(&mut state, i);
+        let i = (a.n.pow(2) / 2).checked_sub(a.n).unwrap_or(0);
+        let nza = a.n + state.random_integer(i);
 
-        print!(" - no. {} n = {} nza = {}...", prblm, a.n, nza);
+        println!(" - no. {} n = {} nza = {}...", prblm, a.n, nza);
 
         assert!(
             a.n <= max_n,
@@ -52,6 +53,15 @@ fn test_auction_sym_random() {
             nza,
             max_nz
         );
+
+        a.ptr = vec![0; a.n + 1];
+        a.row = vec![0; nza];
+        a.val = vec![0.0; nza];
+
+        scaling = vec![0.0; a.n];
+        match_result = vec![0; a.n];
+        rmax = vec![0.0; a.n];
+        cnt = vec![0; a.n];
 
         gen_random_sym(&mut a, nza, &mut state, None);
 
@@ -130,35 +140,47 @@ fn test_auction_unsym_random() {
     let mut a = MatrixType {
         n: 0,
         m: 0,
-        ptr: vec![0; MAX_N + 1],
-        row: vec![0; 2 * MAX_NZ],
-        val: vec![0.0; 2 * MAX_NZ],
+        ptr: Vec::new(),
+        row: Vec::new(),
+        val: Vec::new(),
     };
 
-    let mut rscaling = vec![0.0; MAX_N];
-    let mut cscaling = vec![0.0; MAX_N];
-    let mut match_result = vec![0; MAX_N];
-    let mut rmax = vec![0.0; MAX_N];
-    let mut cnt = vec![0; MAX_N];
+    let mut rscaling = Vec::new();
+    let mut cscaling = Vec::new();
+    let mut match_result = Vec::new();
+    let mut rmax = Vec::new();
+    let mut cnt = Vec::new();
 
-    let mut state = INITIAL_SEED;
+    // let mut state = INITIAL_SEED;
+    let mut state = RandomState::default();
 
     for prblm in 1..=N_PROB {
         // Generate parameters
-        a.n = random_integer(&mut state, MAX_N);
-        a.m = random_integer(&mut state, MAX_N);
-        if random_integer(&mut state, 2) == 1 {
+        a.n = state.random_integer(MAX_N);
+        a.m = state.random_integer(MAX_N);
+        if state.random_integer(2) == 1 {
             a.m = a.n; // 50% chance of unsym vs rect
         }
         if prblm < 21 {
             a.n = prblm; // check very small problems
             a.m = prblm;
         }
-        let i = (a.m * a.n) / 2 - usize::max(a.m, a.n);
-        let i = usize::max(0, i);
-        let nza = usize::max(a.m, a.n) + random_integer(&mut state, i);
+        let i = ((a.m * a.n) / 2)
+            .checked_sub(usize::max(a.m, a.n))
+            .unwrap_or(0);
+        let nza = usize::max(a.m, a.n) + state.random_integer(i);
 
-        print!(" - no. {} m = {} n = {} nza = {}...", prblm, a.m, a.n, nza);
+        println!(" - no. {} m = {} n = {} nza = {}...", prblm, a.m, a.n, nza);
+
+        a.ptr = vec![0; a.n + 1];
+        a.row = vec![0; nza];
+        a.val = vec![0.0; nza];
+
+        rscaling = vec![0.0; a.m];
+        cscaling = vec![0.0; a.n];
+        match_result = vec![0; a.m];
+        rmax = vec![0.0; a.m];
+        cnt = vec![0; a.n];
 
         gen_random_unsym(&mut a, nza, &mut state);
 
