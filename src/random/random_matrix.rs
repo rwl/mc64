@@ -117,7 +117,7 @@ pub fn random_matrix_generate(
 
         for _ in 0..ii {
             let mut j = random_sym_wt_integer(state, n);
-            while cnt[j] >= (m - j + 1) {
+            while cnt[j] >= (m - j) {
                 j = random_sym_wt_integer(state, n);
             }
             cnt[j] += 1;
@@ -544,7 +544,7 @@ mod tests {
         nonsingular: bool,
         sort: bool,
     ) {
-        assert_eq!(ptr[n], nnz + 1);
+        assert_eq!(ptr[n], nnz);
 
         for i in 0..n {
             assert!(ptr[i + 1] >= ptr[i]);
