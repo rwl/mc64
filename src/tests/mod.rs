@@ -13,6 +13,7 @@ use crate::random::{random_matrix_generate, REAL_RECT, REAL_SYM_INDEF};
 mod auction;
 mod equilib;
 mod hungarian;
+mod random;
 
 struct MatrixType {
     n: usize,
