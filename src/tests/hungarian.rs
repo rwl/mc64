@@ -1,6 +1,6 @@
 // use crate::tests::spral::{random_integer, INITIAL_SEED};
 use crate::random::RandomState;
-use crate::tests::{gen_random_sym, gen_random_unsym, MatrixType};
+use crate::tests::{gen_random_sym, gen_random_unsym, MatrixData};
 use crate::{hungarian_scale_sym, hungarian_scale_unsym, HungarianInform, HungarianOptions};
 // use spral::random::{random_integer, INITIAL_SEED};
 
@@ -9,10 +9,10 @@ use crate::{hungarian_scale_sym, hungarian_scale_unsym, HungarianInform, Hungari
 fn test_hungarian_sym_singular() {
     let m: usize = 3;
     let n: usize = 3;
-    let nz: usize = 2;
+    // let nz: usize = 2;
     let ising: usize = 3;
 
-    let mut a = MatrixType {
+    let mut a = MatrixData {
         n,
         m,
         ptr: Vec::new(),
@@ -59,10 +59,10 @@ fn test_hungarian_sym_singular() {
 fn test_hungarian_unsym_singular() {
     let m: usize = 3;
     let n: usize = 5;
-    let nz: usize = 6;
+    // let nz: usize = 6;
     let ising: usize = 3;
 
-    let mut a = MatrixType {
+    let mut a = MatrixData {
         n,
         m,
         ptr: Vec::new(),
@@ -115,7 +115,7 @@ fn test_hungarian_sym_random() {
     const N_PROB: usize = 100;
     const ERR_TOL: f64 = 1e-10;
 
-    let mut a = MatrixType {
+    let mut a = MatrixData {
         n: 0,
         m: 0,
         ptr: Vec::new(),
@@ -161,10 +161,10 @@ fn test_hungarian_sym_random() {
         a.row = vec![0; nza];
         a.val = vec![0.0; nza];
 
-        scaling = vec![0.0; a.n];
-        match_result = vec![0; a.n];
-        rmax = vec![0.0; a.n];
-        cnt = vec![0; a.n];
+        scaling.fill(0.0); // = vec![0.0; a.n];
+        match_result.fill(0); // = vec![0; a.n];
+        rmax.fill(0.0); // = vec![0.0; a.n];
+        cnt.fill(0); // = vec![0; a.n];
 
         gen_random_sym(&mut a, nza, &mut state, None);
 
@@ -232,7 +232,7 @@ fn test_hungarian_unsym_random() {
     const N_PROB: usize = 100;
     const ERR_TOL: f64 = 1e-10;
 
-    let mut a = MatrixType {
+    let mut a = MatrixData {
         n: 0,
         m: 0,
         ptr: Vec::new(),
@@ -292,11 +292,11 @@ fn test_hungarian_unsym_random() {
         a.row = vec![0; nza];
         a.val = vec![0.0; nza];
 
-        rscaling = vec![0.0; a.m];
-        cscaling = vec![0.0; a.n];
-        match_result = vec![0; a.m];
-        rmax = vec![0.0; a.m];
-        cnt = vec![0; a.n];
+        rscaling.fill(0.0); // = vec![0.0; a.m];
+        cscaling.fill(0.0); // = vec![0.0; a.n];
+        match_result.fill(0); // = vec![0; a.m];
+        rmax.fill(0.0); // = vec![0.0; a.m];
+        cnt.fill(0); // = vec![0; a.n];
 
         gen_random_unsym(&mut a, nza, &mut state);
 

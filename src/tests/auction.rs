@@ -1,5 +1,5 @@
 use crate::random::RandomState;
-use crate::tests::{gen_random_sym, gen_random_unsym, MatrixType};
+use crate::tests::{gen_random_sym, gen_random_unsym, MatrixData};
 use crate::{auction_scale_sym, auction_scale_unsym, AuctionInform, AuctionOptions};
 
 /// Testing `auction_scaling_sym` with random matrices.
@@ -13,7 +13,7 @@ fn test_auction_sym_random() {
     // let mut state = INITIAL_SEED;
     let mut state = RandomState::default();
 
-    let mut a = MatrixType {
+    let mut a = MatrixData {
         n: 0,
         m: 0,
         ptr: Vec::new(),
@@ -58,10 +58,10 @@ fn test_auction_sym_random() {
         a.row = vec![0; nza];
         a.val = vec![0.0; nza];
 
-        scaling = vec![0.0; a.n];
-        match_result = vec![0; a.n];
-        rmax = vec![0.0; a.n];
-        cnt = vec![0; a.n];
+        scaling.fill(0.0); // = vec![0.0; a.n];
+        match_result.fill(0); // = vec![0; a.n];
+        rmax.fill(0.0); // = vec![0.0; a.n];
+        cnt.fill(0); // = vec![0; a.n];
 
         gen_random_sym(&mut a, nza, &mut state, None);
 
@@ -130,14 +130,14 @@ fn test_auction_sym_random() {
 #[test]
 fn test_auction_unsym_random() {
     const MAX_N: usize = 1000;
-    const MAX_NZ: usize = 1_000_000;
+    // const MAX_NZ: usize = 1_000_000;
     const N_PROB: usize = 100;
 
     const SCALE_TOL: f64 = 2.0; // How much above 1.0 can scaled value be?
     const MAX_TOL: f64 = 0.01; // How much less than 1.0 can col max be?
     const MAX_EXCEPT: f64 = 0.05; // proportion of bad entries allowed
 
-    let mut a = MatrixType {
+    let mut a = MatrixData {
         n: 0,
         m: 0,
         ptr: Vec::new(),
@@ -176,11 +176,11 @@ fn test_auction_unsym_random() {
         a.row = vec![0; nza];
         a.val = vec![0.0; nza];
 
-        rscaling = vec![0.0; a.m];
-        cscaling = vec![0.0; a.n];
-        match_result = vec![0; a.m];
-        rmax = vec![0.0; a.m];
-        cnt = vec![0; a.n];
+        rscaling.fill(0.0); // = vec![0.0; a.m];
+        cscaling.fill(0.0); // = vec![0.0; a.n];
+        match_result.fill(0); // = vec![0; a.m];
+        rmax.fill(0.0); // = vec![0.0; a.m];
+        cnt.fill(0); // = vec![0; a.n];
 
         gen_random_unsym(&mut a, nza, &mut state);
 

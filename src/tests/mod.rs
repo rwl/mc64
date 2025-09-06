@@ -1,21 +1,12 @@
-// use spral::matrix_util::{REAL_RECT, REAL_SYM_INDEF};
-// use spral::random::random_integer;
-// use spral::random_matrix::{random_matrix_generate, NONSINGULAR, SORT};
-
-// use crate::tests::random::random_integer32 as random_integer;
-// use crate::tests::random_matrix::{
-//     random_matrix_generate32 as random_matrix_generate, REAL_SYM_INDEF,
-// };
-
-use crate::random::RandomState;
-use crate::random::{random_matrix_generate, REAL_RECT, REAL_SYM_INDEF};
+use crate::random::{random_matrix_generate, MatrixType, RandomState};
 
 mod auction;
 mod equilib;
 mod hungarian;
 mod random;
+mod random_matrix;
 
-struct MatrixType {
+struct MatrixData {
     n: usize,
     m: usize,
     ptr: Vec<usize>,
@@ -26,12 +17,12 @@ struct MatrixType {
 /// Generate a random symmetric matrix
 ///
 /// `zr`, if present, all entries in row `zr` are zero
-fn gen_random_sym(a: &mut MatrixType, nza: usize, state: &mut RandomState, zr: Option<usize>) {
+fn gen_random_sym(a: &mut MatrixData, nza: usize, state: &mut RandomState, zr: Option<usize>) {
     // Generate a
     // let mut flag = 0;
     random_matrix_generate(
         state,
-        REAL_SYM_INDEF,
+        MatrixType::RealSymIndef,
         a.n,
         a.n,
         nza,
@@ -78,12 +69,12 @@ fn gen_random_sym(a: &mut MatrixType, nza: usize, state: &mut RandomState, zr: O
 }
 
 /// Generate a random unsymmetric matrix
-fn gen_random_unsym(a: &mut MatrixType, nza: usize, state: &mut RandomState) {
+fn gen_random_unsym(a: &mut MatrixData, nza: usize, state: &mut RandomState) {
     // Generate a
     // let mut flag = 0;
     random_matrix_generate(
         state,
-        REAL_RECT,
+        MatrixType::RealRect,
         a.m,
         a.n,
         nza,

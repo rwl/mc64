@@ -9,17 +9,18 @@ use std::cmp::min;
 
 use crate::random::RandomState;
 
-// Matrix type constants
-pub const UNSPECIFIED: i32 = 0;
-pub const REAL_RECT: i32 = 1;
-pub const REAL_UNSYM: i32 = 2;
-pub const REAL_SYM_PSDEF: i32 = 3;
-pub const REAL_SYM_INDEF: i32 = 4;
-pub const REAL_SKEW: i32 = 6;
+#[derive(Copy, Clone)]
+pub enum MatrixType {
+    UNSPECIFIED = 0,
+    RealRect = 1,
+    // RealUnsym = 2,
+    RealSymPsdef = 3,
+    RealSymIndef = 4,
+    RealSkew = 6,
+}
 
 // Error constants
-pub const ERROR_ALLOCATION: i32 = -1; // Allocation failed
-pub const ERROR_MATRIX_TYPE: i32 = -2; // Bad matrix type
+// pub const ERROR_ALLOCATION: i32 = -1; // Allocation failed
 pub const ERROR_ARG: i32 = -3; // m, n or nnz < 1
 pub const ERROR_NONSQUARE: i32 = -4; // m!=n contradicts matrix_type
 pub const ERROR_SINGULAR: i32 = -5;
@@ -33,7 +34,7 @@ pub const ERROR_SINGULAR: i32 = -5;
 /// part of random permutations
 pub fn random_matrix_generate(
     state: &mut RandomState,
-    matrix_type: i32,
+    matrix_type: MatrixType,
     m: usize,
     n: usize,
     nnz: usize,
@@ -42,48 +43,44 @@ pub fn random_matrix_generate(
     val: Option<&mut [f64]>, // length nnz if provided
     nonsingular: Option<bool>,
     sort: Option<bool>,
-) -> (i32, Option<i32>) {
+) -> i32 {
     // Generate local logical flags
     let lnonsingular = nonsingular.unwrap_or(false);
     let lsort = sort.unwrap_or(false);
 
     // Handle matrix type
     let lsymmetric = match matrix_type {
-        UNSPECIFIED | REAL_RECT => false,
-        REAL_UNSYM => {
+        MatrixType::UNSPECIFIED | MatrixType::RealRect => false,
+        // MatrixType::RealUnsym => {
+        //     if m != n {
+        //         // Matrix is not square - did user mean SPRAL_MATRIX_REAL_RECT?
+        //         return ERROR_NONSQUARE;
+        //     }
+        //     false
+        // }
+        MatrixType::RealSymPsdef | MatrixType::RealSymIndef | MatrixType::RealSkew => {
             if m != n {
                 // Matrix is not square - did user mean SPRAL_MATRIX_REAL_RECT?
-                return (ERROR_NONSQUARE, Some(0));
-            }
-            false
-        }
-        REAL_SYM_PSDEF | REAL_SYM_INDEF | REAL_SKEW => {
-            if m != n {
-                // Matrix is not square - did user mean SPRAL_MATRIX_REAL_RECT?
-                return (ERROR_NONSQUARE, Some(0));
+                return ERROR_NONSQUARE;
             }
             true
-        }
-        _ => {
-            // COMPLEX or unknown matrix type
-            return (ERROR_MATRIX_TYPE, Some(0));
         }
     };
 
     // Check args
     if m < 1 || n < 1 || nnz < 1 {
         // Args out of range
-        return (ERROR_ARG, Some(0));
+        return ERROR_ARG;
     }
 
     if (lsymmetric && (n * (n + 1) / 2 < nnz)) || (!lsymmetric && ((m * n) < nnz)) {
         // Too many non-zeroes for matrix
-        return (ERROR_ARG, Some(0));
+        return ERROR_ARG;
     }
 
     if lnonsingular && (nnz < usize::min(m, n)) {
         // Requested a non-singular matrix, but not enough non-zeroes
-        return (ERROR_SINGULAR, Some(0));
+        return ERROR_SINGULAR;
     }
 
     // Allocate non-zeroes to columns
@@ -155,9 +152,9 @@ pub fn random_matrix_generate(
         }
 
         for _ in 0..ii {
-            let mut j = state.random_integer(n) - 1;
+            let mut j = state.random_integer(n);
             while cnt[j] >= m {
-                j = state.random_integer(n) - 1;
+                j = state.random_integer(n);
             }
             cnt[j] += 1;
         }
@@ -169,18 +166,18 @@ pub fn random_matrix_generate(
 
     // Determine row values
     let mut rused = vec![false; m];
-    ptr[0] = 1; // 1-indexed like Fortran
+    ptr[0] = 0;
 
     for i in 0..n {
         // Determine end of col
         ptr[i + 1] = ptr[i] + cnt[i];
-        let mut jj = ptr[i] - 1; // Convert to 0-indexed
+        let mut jj = ptr[i];
 
         // Add non-singular entry if required
         if lnonsingular {
             if cperm[i] <= min(m, n) {
                 let k = rperm[cperm[i] - 1] - 1;
-                row[jj] = k + 1; // Store as 1-indexed
+                row[jj] = k;
                 rused[k] = true;
                 jj += 1;
             }
@@ -203,8 +200,8 @@ pub fn random_matrix_generate(
         }
 
         // Reset rused(:)
-        for jj in (ptr[i] - 1)..(ptr[i + 1] - 1) {
-            rused[row[jj] - 1] = false;
+        for jj in ptr[i]..ptr[i + 1] {
+            rused[row[jj]] = false;
         }
     }
 
@@ -215,12 +212,12 @@ pub fn random_matrix_generate(
 
     // Determine values
     if let Some(val_slice) = val {
-        for jj in 0..(ptr[n] - 1) {
+        for jj in 0..ptr[n] {
             val_slice[jj] = state.random_real(None);
         }
     }
 
-    (0, Some(0))
+    0
 }
 
 /// Returns a random number in range [0,n-1] weighted by number of entries in
@@ -242,7 +239,7 @@ fn random_sym_wt_integer(state: &mut RandomState, n: usize) -> usize {
 
 /// Returns a random integer in range [minv,maxv] inclusive
 fn random_integer_in_range(state: &mut RandomState, minv: usize, maxv: usize) -> usize {
-    minv + state.random_integer(maxv - minv + 1) - 1
+    minv + state.random_integer(maxv - minv + 1)
 }
 
 /// Returns a random permutation of length n in perm using Knuth shuffles
@@ -253,9 +250,9 @@ fn random_perm(state: &mut RandomState, n: usize, perm: &mut [usize]) {
     }
 
     // Go through positions i=1:n-1
-    for i in 0..(n - 1) {
+    for i in 0..n {
         // Swap perm(i) with perm(j), where j is random in [i:n]
-        let j = random_integer_in_range(state, i + 1, n) - 1;
+        let j = random_integer_in_range(state, i, n - 1);
         let temp = perm[i];
         perm[i] = perm[j];
         perm[j] = temp;
@@ -271,8 +268,8 @@ fn dbl_tr_sort(m: usize, n: usize, ptr: &mut [usize], row: &mut [usize]) {
 
     // Count number of entries in each row. ptr2[i+2] = #entries in row i
     for node in 0..n {
-        for ii in (ptr[node] - 1)..(ptr[node + 1] - 1) {
-            let j = row[ii] - 1;
+        for ii in ptr[node]..ptr[node + 1] {
+            let j = row[ii];
             ptr2[j + 2] += 1;
         }
     }
@@ -289,8 +286,8 @@ fn dbl_tr_sort(m: usize, n: usize, ptr: &mut [usize], row: &mut [usize]) {
 
     // Now fill in col array
     for node in 0..n {
-        for ii in (ptr[node] - 1)..(ptr[node + 1] - 1) {
-            let j = row[ii] - 1; // row entry
+        for ii in ptr[node]..ptr[node + 1] {
+            let j = row[ii]; // row entry
             col[ptr2[j + 1] - 1] = node + 1;
             ptr2[j + 1] += 1;
         }
@@ -305,7 +302,7 @@ fn dbl_tr_sort(m: usize, n: usize, ptr: &mut [usize], row: &mut [usize]) {
     for i in 0..m {
         for jj in (ptr2[i] - 1)..(ptr2[i + 1] - 1) {
             let node = col[jj] - 1;
-            row[nptr[node] - 1] = i + 1;
+            row[nptr[node]] = i + 1;
             nptr[node] += 1;
         }
     }

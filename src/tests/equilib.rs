@@ -1,5 +1,5 @@
 use crate::tests::RandomState;
-use crate::tests::{gen_random_sym, gen_random_unsym, MatrixType};
+use crate::tests::{gen_random_sym, gen_random_unsym, MatrixData};
 use crate::{equilib_scale_sym, equilib_scale_unsym, EquilibInform, EquilibOptions};
 
 /// Testing [equilib_scaling_sym] with random matrices.
@@ -9,7 +9,7 @@ pub fn test_equilib_sym_random() {
     let max_nz = 1000000;
     let n_prob = 100;
 
-    let mut a = MatrixType {
+    let mut a = MatrixData {
         n: 0,
         m: 0,
         ptr: Vec::new(),
@@ -55,8 +55,8 @@ pub fn test_equilib_sym_random() {
         a.row = vec![0; nza];
         a.val = vec![0.0; nza];
 
-        scaling = vec![0.0; a.n];
-        rinf = vec![0.0; a.n];
+        scaling.fill(0.0); // = vec![0.0; a.n];
+        rinf.fill(0.0); // = vec![0.0; a.n];
 
         gen_random_sym(&mut a, nza, &mut state, None);
 
@@ -100,7 +100,7 @@ fn test_equilib_unsym_random() {
     // let mut state = INITIAL_SEED;
     let mut state = RandomState::default();
 
-    let mut a = MatrixType {
+    let mut a = MatrixData {
         n: 0,
         m: 0,
         ptr: Vec::new(),
@@ -156,9 +156,9 @@ fn test_equilib_unsym_random() {
         a.row = vec![0; nza];
         a.val = vec![0.0; nza];
 
-        rscaling = vec![0.0; a.m];
-        cscaling = vec![0.0; a.n];
-        rinf = vec![0.0; a.m];
+        rscaling.fill(0.0); // = vec![0.0; a.m];
+        cscaling.fill(0.0); // = vec![0.0; a.n];
+        rinf.fill(0.0); // = vec![0.0; a.m];
 
         gen_random_unsym(&mut a, nza, &mut state);
 
