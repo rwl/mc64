@@ -187,11 +187,11 @@ fn hungarian_wrapper(
     let mut klong = 0;
     for i in 0..n {
         ptr2[i] = klong;
-        for jlong in (ptr[i] - 1)..(ptr[i + 1] - 1) {
+        for jlong in ptr[i]..ptr[i + 1] {
             if val[jlong] == 0.0 {
                 continue;
             }
-            row2[klong] = row[jlong] - 1;
+            row2[klong] = row[jlong];
             val2[klong] = val[jlong].abs();
             klong += 1;
         }

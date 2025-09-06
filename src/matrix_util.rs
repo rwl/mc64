@@ -47,7 +47,7 @@ pub(crate) fn half_to_full(
     for j in 0..n {
         let i1 = ptr[j];
         let i2 = ptr[j + 1];
-        iw[j] += (i2 - i1) as i32;
+        iw[j] += (i2 - i1) as i32; /* + 1;*/
         for ii in i1..i2 {
             let i = row[ii];
             if i != j {
@@ -75,21 +75,16 @@ pub(crate) fn half_to_full(
         let mut jstart = ckp1;
         // set ikp1 for next column
         ipkp1 = i1;
-        let i2 = i2 - 1;
+        //let i2 = i2 - 1;
 
-        // run through columns in reverse order
+        // run through columns in reverse order, from i2-1 down to i1.
         // lower triangular part of col. moved to end of same column in expanded form
-        if let Some(a) = a.as_mut() {
-            for ii in (i1..i2).rev() {
-                jstart -= 1;
+        for ii in (i1..i2).rev() {
+            jstart -= 1;
+            if let Some(a) = a.as_mut() {
                 a[jstart] = a[ii];
-                row[jstart] = row[ii];
             }
-        } else {
-            for ii in (i1..i2).rev() {
-                jstart -= 1;
-                row[jstart] = row[ii];
-            }
+            row[jstart] = row[ii];
         }
 
         // ptr is set to position of first entry in lower triangular part of
