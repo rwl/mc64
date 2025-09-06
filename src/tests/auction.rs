@@ -1,4 +1,4 @@
-use crate::tests::random::RandomState;
+use crate::random::RandomState;
 use crate::tests::{gen_random_sym, gen_random_unsym, MatrixType};
 use crate::{auction_scale_sym, auction_scale_unsym, AuctionInform, AuctionOptions};
 

@@ -37,6 +37,8 @@ mod matrix_util;
 mod postproc;
 
 #[cfg(test)]
+pub(crate) mod random;
+#[cfg(test)]
 mod tests;
 
 pub use auction::*;

@@ -33,12 +33,12 @@ pub(crate) fn match_postproc(
         // First perform post-processing and magnitude adjustment based on match
         let mut ravg = 0.0;
         let mut cavg = 0.0;
-        for (i, &m) in match_result.iter().enumerate() {
-            if m == 0 {
+        for (i, &m_val) in match_result.iter().enumerate() {
+            if m_val == -1 {
                 continue;
             }
             ravg += rscaling[i];
-            cavg += cscaling[m as usize];
+            cavg += cscaling[m_val as usize];
         }
         ravg /= nmatch as f64;
         cavg /= nmatch as f64;
@@ -52,8 +52,8 @@ pub(crate) fn match_postproc(
 
         // For each unmatched col, scale max entry to 1.0
         for i in 0..n {
-            let colmax = (ptr[i]..ptr[i + 1])
-                .map(|j| (val[j] * rscaling[row[j]].exp()).abs())
+            let colmax = ((ptr[i] - 1)..(ptr[i + 1] - 1))
+                .map(|j| (val[j] * rscaling[row[j] - 1].exp()).abs())
                 .fold(0.0, f64::max);
             cmax[i] = if colmax == 0.0 {
                 0.0
@@ -61,9 +61,9 @@ pub(crate) fn match_postproc(
                 (1.0 / colmax).ln()
             };
         }
-        for &m in match_result {
-            if m != 0 {
-                cmax[m as usize] = cscaling[m as usize];
+        for &m_val in match_result {
+            if m_val != -1 {
+                cmax[m_val as usize] = cscaling[m_val as usize];
             }
         }
         cscaling.copy_from_slice(&cmax);
@@ -74,12 +74,12 @@ pub(crate) fn match_postproc(
         // First perform post-processing and magnitude adjustment based on match
         let mut ravg = 0.0;
         let mut cavg = 0.0;
-        for (i, &m) in match_result.iter().enumerate() {
-            if m == 0 {
+        for (i, &m_val) in match_result.iter().enumerate() {
+            if m_val == -1 {
                 continue;
             }
             ravg += rscaling[i];
-            cavg += cscaling[m as usize];
+            cavg += cscaling[m_val as usize];
         }
         ravg /= nmatch as f64;
         cavg /= nmatch as f64;
@@ -93,16 +93,16 @@ pub(crate) fn match_postproc(
 
         // Find max column-scaled value in each row from unmatched cols
         for i in 0..n {
-            for j in ptr[i]..ptr[i + 1] {
+            for j in (ptr[i] - 1)..(ptr[i + 1] - 1) {
                 let v = (val[j] * cscaling[i].exp()).abs();
-                rmax[row[j]] = f64::max(rmax[row[j]], v);
+                rmax[row[j] - 1] = f64::max(rmax[row[j] - 1], v);
             }
         }
 
         // Calculate scaling for each row, but overwrite with correct values for
         // matched rows, then copy entire array over rscaling[:]
-        for (i, &m) in match_result.iter().enumerate() {
-            if m != 0 {
+        for (i, &m_val) in match_result.iter().enumerate() {
+            if m_val != -1 {
                 continue;
             }
             rscaling[i] = if rmax[i] == 0.0 {

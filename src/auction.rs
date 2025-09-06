@@ -144,7 +144,7 @@ pub fn auction_scale_unsym(
 }
 
 // An implementation of the auction algorithm to solve the assignment problem
-// i.e. max_M sum_{(i,j)\in M} a_{ij}    where M is a matching.
+// i.e. max_M sum_{(i,j) \in M} a_{ij}    where M is a matching.
 // The dual variables u_i for row i and v_j for col j can be used to find
 // a good scaling after postprocessing.
 // We're aiming for:
@@ -183,17 +183,12 @@ fn auction_match_core(
     inform.flag = 0;
     inform.unmatchable = 0;
 
-    let mut owner = vec![0; m];
+    let mut owner = vec![n; m];
     let mut next = vec![0; n];
 
     let minmn = m.min(n);
     let mut unmatched = minmn;
-    match_result.fill(0); // 0 = unmatched, -1 = unmatched+ineligible
-    owner.fill(0);
-    dualu.fill(0.0);
-    // dualv is set for each column as it becomes matched, otherwise we use
-    // the value supplied on input (calculated as something sensible during
-    // preprocessing)
+    match_result.fill(-1); // -1 = unmatched, -2 = unmatched+ineligible
 
     let mut prev = usize::MAX;
     let mut nunchanged = 0;
@@ -232,7 +227,7 @@ fn auction_match_core(
         let mut insert = 0;
         for cptr in 0..tail {
             let col = next[cptr];
-            if match_result[col] != 0 {
+            if match_result[col] != -1 {
                 continue; // already matched or ineligible
             }
             if ptr[col] == ptr[col + 1] {
@@ -268,16 +263,16 @@ fn auction_match_core(
                 unmatched -= 1;
                 let k = owner[bestr];
                 owner[bestr] = col;
-                if k != 0 {
+                if k != n {
                     // Mark column k as unmatched
-                    match_result[k] = 0; // unmatched
+                    match_result[k] = -1; // unmatched
                     unmatched += 1;
                     next[insert] = k;
                     insert += 1;
                 }
             } else {
                 // No net benefit, mark col as ineligible for future consideration
-                match_result[col] = -1; // ineligible
+                match_result[col] = -2; // ineligible
                 unmatched -= 1;
                 inform.unmatchable += 1;
             }
@@ -286,10 +281,10 @@ fn auction_match_core(
     }
     inform.iterations = options.max_iterations;
 
-    // We expect unmatched columns to have match_result[col] = 0
+    // We expect unmatched columns to have match_result[col] = -1
     for m in match_result.iter_mut() {
-        if *m == -1 {
-            *m = 0;
+        if *m == -2 {
+            *m = -1;
         }
     }
 }
@@ -319,7 +314,6 @@ fn auction_match(
     options: &AuctionOptions,
     inform: &mut AuctionInform,
 ) {
-    let ptr = &ptr[..n + 1];
     let match_result = &mut match_result[..m];
     let rscaling = &mut rscaling[..m];
     let cscaling = &mut cscaling[..n];
@@ -328,7 +322,9 @@ fn auction_match(
 
     // Reset ne for the expanded symmetric matrix
     let mut ne = ptr[n]; // - 1;
-    ne = 2 * ne;
+    if expand {
+        ne = 2 * ne - n;
+    }
 
     // Expand matrix, drop explicit zeroes and take log absolute values
     let mut ptr2 = vec![0; n + 1];
@@ -338,18 +334,18 @@ fn auction_match(
     let mut cmatch = vec![0; n];
 
     let mut klong = 0;
+    ptr2[0] = 0;
     for i in 0..n {
-        ptr2[i] = klong;
-        for jlong in ptr[i]..ptr[i + 1] {
+        for jlong in (ptr[i] - 1)..(ptr[i + 1] - 1) {
             if val[jlong] == 0.0 {
                 continue;
             }
-            row2[klong] = row[jlong];
+            row2[klong] = row[jlong] - 1; // Use 0-based indexing
             val2[klong] = val[jlong].abs().ln();
             klong += 1;
         }
+        ptr2[i + 1] = klong;
     }
-    ptr2[n] = klong;
 
     if expand {
         if m != n {
@@ -358,6 +354,7 @@ fn auction_match(
             return;
         }
         let mut iw = vec![0; 5 * n];
+        println!("Before half_to_full: ptr2 = {:?}, row2 = {:?}", ptr2, row2);
         half_to_full(
             n,
             &mut row2,
@@ -365,6 +362,7 @@ fn auction_match(
             &mut iw,
             Some(&mut val2), /*, true*/
         );
+        println!("After half_to_full: ptr2 = {:?}, row2 = {:?}", ptr2, row2);
     }
 
     // Compute column maximums
@@ -407,7 +405,8 @@ fn auction_match(
         options,
         inform,
     );
-    inform.matched = cmatch.iter().filter(|&&x| x != 0).count();
+    println!("cmatch = {:?}", cmatch);
+    inform.matched = cmatch.iter().filter(|&&x| x != -1).count();
 
     // Calculate an adjustment so row and col scaling similar orders of magnitude
     // and undo pre processing
@@ -418,13 +417,12 @@ fn auction_match(
         *c = -(*c) - max;
     }
 
-    // Convert row->col matching into col->row one
-    match_result.fill(0);
+    // Convert col->row matching into row->col one
+    match_result.fill(-1);
     for (i, &m) in cmatch.iter().enumerate() {
-        if m == 0 {
-            continue; // unmatched row
+        if m != -1 {
+            match_result[m as usize] = i as i32;
         }
-        match_result[m as usize] = i as i32;
     }
     match_postproc(
         m,

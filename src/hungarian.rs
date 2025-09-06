@@ -187,11 +187,11 @@ fn hungarian_wrapper(
     let mut klong = 0;
     for i in 0..n {
         ptr2[i] = klong;
-        for jlong in ptr[i]..ptr[i + 1] {
+        for jlong in (ptr[i] - 1)..(ptr[i + 1] - 1) {
             if val[jlong] == 0.0 {
                 continue;
             }
-            row2[klong] = row[jlong];
+            row2[klong] = row[jlong] - 1;
             val2[klong] = val[jlong].abs();
             klong += 1;
         }
@@ -368,8 +368,8 @@ fn hungarian_wrapper(
     // with convention that 1/0 = 1
     cscale.copy_from_slice(&rscaling[..n]);
     for i in 0..n {
-        for jlong in ptr[i]..ptr[i + 1] {
-            let k = row[jlong];
+        for jlong in (ptr[i] - 1)..(ptr[i + 1] - 1) {
+            let k = row[jlong] - 1;
             if cscale[i] == f64::NEG_INFINITY && cscale[k] != f64::NEG_INFINITY {
                 // i not in I, k in I
                 rscaling[i] = f64::max(rscaling[i], val[jlong].abs().ln() + rscaling[k]);

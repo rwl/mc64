@@ -1,4 +1,4 @@
-use crate::tests::random::RandomState;
+use crate::tests::RandomState;
 use crate::tests::{gen_random_sym, gen_random_unsym, MatrixType};
 use crate::{equilib_scale_sym, equilib_scale_unsym, EquilibInform, EquilibOptions};
 

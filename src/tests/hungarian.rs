@@ -1,5 +1,5 @@
 // use crate::tests::spral::{random_integer, INITIAL_SEED};
-use crate::tests::random::RandomState;
+use crate::random::RandomState;
 use crate::tests::{gen_random_sym, gen_random_unsym, MatrixType};
 use crate::{hungarian_scale_sym, hungarian_scale_unsym, HungarianInform, HungarianOptions};
 // use spral::random::{random_integer, INITIAL_SEED};
@@ -137,8 +137,8 @@ fn test_hungarian_sym_random() {
         // Generate parameters
         a.n = state.random_integer(MAX_N);
         if prblm < 21 {
-            a.n = prblm;
-        } // check very small problems
+            a.n = prblm; // check very small problems
+        }
         let i = (a.n.pow(2) / 10).checked_sub(a.n).unwrap_or(0);
         let nza = a.n + state.random_integer(i);
 
@@ -189,8 +189,12 @@ fn test_hungarian_sym_random() {
             assert!(j < a.n, "match({}) = {}", i, j);
             cnt[j] += 1;
             // TODO: check a.row[]
-            if !a.row[a.ptr[j]..a.ptr[j + 1]].iter().any(|&k| k == i)
-                && !a.row[a.ptr[i]..a.ptr[i + 1]].iter().any(|&k| k == j)
+            if !a.row[(a.ptr[j] - 1)..(a.ptr[j + 1] - 1)]
+                .iter()
+                .any(|&k| k == i + 1)
+                && !a.row[(a.ptr[i] - 1)..(a.ptr[i + 1] - 1)]
+                    .iter()
+                    .any(|&k| k == j + 1)
             {
                 panic!("matched on ({},{}) but no such entry", i, j);
             }
@@ -201,13 +205,13 @@ fn test_hungarian_sym_random() {
         rmax.fill(0.0);
         for i in 0..a.n {
             let mut cmax = 0.0;
-            for j in a.ptr[i]..a.ptr[i + 1] {
-                let v = (scaling[i] * a.val[j] * scaling[a.row[j]]).abs();
+            for j in (a.ptr[i] - 1)..(a.ptr[i + 1] - 1) {
+                let v = (scaling[i] * a.val[j] * scaling[a.row[j] - 1]).abs();
                 if v >= 1.0 + ERR_TOL {
                     panic!("scaled entry = {:.4e}", v);
                 }
                 cmax = f64::max(cmax, v);
-                rmax[a.row[j]] = f64::max(rmax[a.row[j]], v);
+                rmax[a.row[j] - 1] = f64::max(rmax[a.row[j] - 1], v);
             }
             rmax[i] = f64::max(rmax[i], cmax);
         }
@@ -321,9 +325,9 @@ fn test_hungarian_unsym_random() {
                 cnt[j as usize] += 1;
                 nmatch += 1;
                 // TODO: check range
-                if !a.row[a.ptr[j as usize]..a.ptr[j as usize + 1]]
+                if !a.row[(a.ptr[j as usize] - 1)..(a.ptr[j as usize + 1] - 1)]
                     .iter()
-                    .any(|&k| k == i)
+                    .any(|&k| k == i + 1)
                 {
                     panic!("matched on ({},{}) but no such entry", i, j);
                 }
@@ -340,13 +344,13 @@ fn test_hungarian_unsym_random() {
         rmax.fill(0.0);
         for i in 0..a.n {
             let mut cmax = 0.0;
-            for j in a.ptr[i]..a.ptr[i + 1] {
-                let v = (cscaling[i] * a.val[j] * rscaling[a.row[j]]).abs();
+            for j in (a.ptr[i] - 1)..(a.ptr[i + 1] - 1) {
+                let v = (cscaling[i] * a.val[j] * rscaling[a.row[j] - 1]).abs();
                 if v >= 1.0 + ERR_TOL {
                     panic!("scaled entry = {:.4e}", v);
                 }
                 cmax = f64::max(cmax, v);
-                rmax[a.row[j]] = f64::max(rmax[a.row[j]], v);
+                rmax[a.row[j] - 1] = f64::max(rmax[a.row[j] - 1], v);
             }
             if cmax < 1.0 - ERR_TOL && a.ptr[i] != a.ptr[i + 1] {
                 panic!("cmax({}) = {:.4e}", i + 1, cmax);

@@ -68,8 +68,8 @@ pub fn equilib_scale_sym(
         maxentry.fill(0.0);
 
         for c in 0..n {
-            for j in ptr[c]..ptr[c + 1] {
-                let r = row[j];
+            for j in (ptr[c] - 1)..(ptr[c + 1] - 1) {
+                let r = row[j] - 1;
                 let v = (scaling[r] * val[j] * scaling[c]).abs();
                 maxentry[r] = f64::max(maxentry[r], v);
                 maxentry[c] = f64::max(maxentry[c], v);
@@ -137,8 +137,8 @@ pub fn equilib_scale_unsym(
         cmaxentry.fill(0.0);
 
         for c in 0..n {
-            for j in ptr[c]..ptr[c + 1] {
-                let r = row[j];
+            for j in (ptr[c] - 1)..(ptr[c + 1] - 1) {
+                let r = row[j] - 1;
                 let v = (rscaling[r] * val[j] * cscaling[c]).abs();
                 rmaxentry[r] = f64::max(rmaxentry[r], v);
                 cmaxentry[c] = f64::max(cmaxentry[c], v);

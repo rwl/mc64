@@ -7,14 +7,12 @@
 //     random_matrix_generate32 as random_matrix_generate, REAL_SYM_INDEF,
 // };
 
-use crate::tests::random::RandomState;
-use crate::tests::random_matrix::{random_matrix_generate, REAL_RECT, REAL_SYM_INDEF};
+use crate::random::RandomState;
+use crate::random::{random_matrix_generate, REAL_RECT, REAL_SYM_INDEF};
 
 mod auction;
 mod equilib;
 mod hungarian;
-mod random;
-mod random_matrix;
 
 struct MatrixType {
     n: usize,
@@ -25,6 +23,8 @@ struct MatrixType {
 }
 
 /// Generate a random symmetric matrix
+///
+/// `zr`, if present, all entries in row `zr` are zero
 fn gen_random_sym(a: &mut MatrixType, nza: usize, state: &mut RandomState, zr: Option<usize>) {
     // Generate a
     // let mut flag = 0;
