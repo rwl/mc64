@@ -100,27 +100,25 @@ pub fn random_matrix_generate(
             // If cperm(i)<=min(m,n) then that column has a structural non-zero
             // in position rperm(cperm(i))
             for i in 0..n {
-                rperm[i] = i + 1;
-                cperm[i] = i + 1;
+                rperm[i] = i;
+                cperm[i] = i;
             }
 
-            // Note: In Rust we're using 0-indexed arrays but keeping 1-indexed values
-            // to stay consistent with the original Fortran
             for i in 0..n {
-                cnt[cperm[i] - 1] += 1;
+                cnt[cperm[i]] += 1;
             }
         }
 
         // Generate column assignments of remaining entries
         let mut ii = nnz;
         if lnonsingular {
-            ii = nnz - usize::min(m, n);
+            ii = nnz - min(m, n); // Allow for forced non-sing
         }
 
         for _ in 0..ii {
-            let mut j = random_sym_wt_integer(state, n) - 1;
-            while cnt[j] >= (m - j) {
-                j = random_sym_wt_integer(state, n) - 1;
+            let mut j = random_sym_wt_integer(state, n);
+            while cnt[j] >= (m - j + 1) {
+                j = random_sym_wt_integer(state, n);
             }
             cnt[j] += 1;
         }
@@ -135,11 +133,12 @@ pub fn random_matrix_generate(
             // We use the first min(m,n) of each permutation
             // If cperm(i)<=min(m,n) then that column has a structural non-zero
             // in position rperm(cperm(i))
+            // (i.e. rperm gives actual rows, cperm doesn't - it's an inverse)
             random_perm(state, m, &mut rperm);
             random_perm(state, n, &mut cperm);
 
             for i in 0..n {
-                if cperm[i] <= min(m, n) {
+                if cperm[i] < min(m, n) {
                     cnt[i] = 1;
                 }
             }
@@ -159,7 +158,6 @@ pub fn random_matrix_generate(
             cnt[j] += 1;
         }
 
-        // Debug check in Fortran
         let sum_cnt: usize = cnt.iter().sum();
         assert_eq!(sum_cnt, nnz);
     }
@@ -175,8 +173,8 @@ pub fn random_matrix_generate(
 
         // Add non-singular entry if required
         if lnonsingular {
-            if cperm[i] <= min(m, n) {
-                let k = rperm[cperm[i] - 1] - 1;
+            if cperm[i] < min(m, n) {
+                let k = rperm[cperm[i]];
                 row[jj] = k;
                 rused[k] = true;
                 jj += 1;
@@ -184,17 +182,17 @@ pub fn random_matrix_generate(
         }
 
         // Add normal entries
-        let mut minidx = 1;
+        let mut minidx = 0;
         if lsymmetric {
-            minidx = i + 1;
+            minidx = i;
         }
 
-        while jj < (ptr[i + 1] - 1) {
-            let mut k = random_integer_in_range(state, minidx, m) - 1;
+        while jj < ptr[i + 1] {
+            let mut k = random_integer_in_range(state, minidx, m);
             while rused[k] {
-                k = random_integer_in_range(state, minidx, m) - 1;
+                k = random_integer_in_range(state, minidx, m);
             }
-            row[jj] = k + 1; // Store as 1-indexed
+            row[jj] = k;
             rused[k] = true;
             jj += 1;
         }
@@ -211,16 +209,16 @@ pub fn random_matrix_generate(
     }
 
     // Determine values
-    if let Some(val_slice) = val {
+    if let Some(v) = val {
         for jj in 0..ptr[n] {
-            val_slice[jj] = state.random_real(None);
+            v[jj] = state.random_real(None);
         }
     }
 
     0
 }
 
-/// Returns a random number in range [0,n-1] weighted by number of entries in
+/// Returns a random number in range `[0,n-1]` weighted by number of entries in
 /// lower half triangle
 ///
 /// Do this by only accepting randomly generated column with frequency
@@ -237,9 +235,9 @@ fn random_sym_wt_integer(state: &mut RandomState, n: usize) -> usize {
     r1
 }
 
-/// Returns a random integer in range [minv,maxv] inclusive
+/// Returns a random integer in range `[minv,maxv)`
 fn random_integer_in_range(state: &mut RandomState, minv: usize, maxv: usize) -> usize {
-    minv + state.random_integer(maxv - minv + 1)
+    minv + state.random_integer(maxv - minv)
 }
 
 /// Returns a random permutation of length n in perm using Knuth shuffles
@@ -250,9 +248,9 @@ fn random_perm(state: &mut RandomState, n: usize, perm: &mut [usize]) {
     }
 
     // Go through positions i=1:n-1
-    for i in 0..n {
-        // Swap perm(i) with perm(j), where j is random in [i:n]
-        let j = random_integer_in_range(state, i, n - 1);
+    for i in 0..n - 1 {
+        // Swap perm(i) with perm(j), where j is random in [i:n)
+        let j = random_integer_in_range(state, i, n);
         let temp = perm[i];
         perm[i] = perm[j];
         perm[j] = temp;
@@ -281,14 +279,14 @@ fn dbl_tr_sort(m: usize, n: usize, ptr: &mut [usize], row: &mut [usize]) {
         ptr2[i + 2] = ptr2[i + 1] + ptr2[i + 2];
     }
 
-    let total_entries = ptr2[m + 1] - 1;
-    let mut col = vec![0; total_entries];
+    let jj = ptr2[m + 1];
+    let mut col = vec![0; jj];
 
     // Now fill in col array
     for node in 0..n {
         for ii in ptr[node]..ptr[node + 1] {
             let j = row[ii]; // row entry
-            col[ptr2[j + 1] - 1] = node + 1;
+            col[ptr2[j + 1]] = node;
             ptr2[j + 1] += 1;
         }
     }
@@ -300,10 +298,375 @@ fn dbl_tr_sort(m: usize, n: usize, ptr: &mut [usize], row: &mut [usize]) {
     }
 
     for i in 0..m {
-        for jj in (ptr2[i] - 1)..(ptr2[i + 1] - 1) {
-            let node = col[jj] - 1;
-            row[nptr[node]] = i + 1;
+        for jj in ptr2[i]..ptr2[i + 1] {
+            let node = col[jj];
+            row[nptr[node]] = i;
             nptr[node] += 1;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cmp::min;
+
+    #[test]
+    fn test_errors() {
+        let mut state = RandomState::default();
+        let mut ptr: Vec<usize> = vec![0; 101];
+        let mut row: Vec<usize> = vec![0; 1000];
+        let mut m; // = 100;
+        let mut n = 100;
+        let mut nnz = 1000;
+
+        // Test bad args
+        println!(" * Testing m < 1.............................");
+        m = 0;
+        let flag = random_matrix_generate(
+            &mut state,
+            MatrixType::UNSPECIFIED,
+            m,
+            n,
+            nnz,
+            &mut ptr,
+            &mut row,
+            None,
+            None,
+            None,
+        );
+        assert_eq!(flag, ERROR_ARG);
+        m = 100; // restore
+
+        println!(" * Testing n < 1.............................");
+        n = 0;
+        let flag = random_matrix_generate(
+            &mut state,
+            MatrixType::UNSPECIFIED,
+            m,
+            n,
+            nnz,
+            &mut ptr,
+            &mut row,
+            None,
+            None,
+            None,
+        );
+        assert_eq!(flag, ERROR_ARG);
+        n = 100; // restore
+
+        println!(" * Testing nnz < 1...........................");
+        nnz = 0;
+        let flag = random_matrix_generate(
+            &mut state,
+            MatrixType::UNSPECIFIED,
+            m,
+            n,
+            nnz,
+            &mut ptr,
+            &mut row,
+            None,
+            None,
+            None,
+        );
+        assert_eq!(flag, ERROR_ARG);
+        //nnz = 1000; // restore
+
+        println!(" * Testing nnz > m*n (unsym).................");
+        nnz = m * n + 1;
+        let flag = random_matrix_generate(
+            &mut state,
+            MatrixType::UNSPECIFIED,
+            m,
+            n,
+            nnz,
+            &mut ptr,
+            &mut row,
+            None,
+            None,
+            None,
+        );
+        assert_eq!(flag, ERROR_ARG);
+        // nnz = 1000; // restore
+
+        println!(" * Testing nnz > n*(n+1)/2 (sym).............");
+        let matrix_type = MatrixType::RealSymIndef;
+        nnz = n * (n + 1) / 2 + 1;
+        let flag = random_matrix_generate(
+            &mut state,
+            matrix_type,
+            m,
+            n,
+            nnz,
+            &mut ptr,
+            &mut row,
+            None,
+            None,
+            None,
+        );
+        assert_eq!(flag, ERROR_ARG);
+        nnz = 1000; // restore
+
+        // Test non-square
+        let matrix_type = MatrixType::RealSymPsdef;
+        m = n + 1;
+        println!(" * Testing non-square + SYM_PSDEF............");
+        let flag = random_matrix_generate(
+            &mut state,
+            matrix_type,
+            m,
+            n,
+            nnz,
+            &mut ptr,
+            &mut row,
+            None,
+            None,
+            None,
+        );
+        assert_eq!(flag, ERROR_NONSQUARE);
+
+        let matrix_type = MatrixType::RealSymIndef;
+        println!(" * Testing non-square + SYM_INDEF............");
+        let flag = random_matrix_generate(
+            &mut state,
+            matrix_type,
+            m,
+            n,
+            nnz,
+            &mut ptr,
+            &mut row,
+            None,
+            None,
+            None,
+        );
+        assert_eq!(flag, ERROR_NONSQUARE);
+
+        let matrix_type = MatrixType::RealSkew;
+        println!(" * Testing non-square + SKEW.................");
+        let flag = random_matrix_generate(
+            &mut state,
+            matrix_type,
+            m,
+            n,
+            nnz,
+            &mut ptr,
+            &mut row,
+            None,
+            None,
+            None,
+        );
+        assert_eq!(flag, ERROR_NONSQUARE);
+        m = 100; // restore
+
+        // Test singular but insufficient nnz
+        nnz = n - 1;
+        println!(" * Testing non-singular but nnz too small....");
+        let flag = random_matrix_generate(
+            &mut state,
+            MatrixType::UNSPECIFIED,
+            m,
+            n,
+            nnz,
+            &mut ptr,
+            &mut row,
+            None,
+            Some(true),
+            None,
+        );
+        assert_eq!(flag, ERROR_SINGULAR);
+    }
+
+    #[test]
+    fn test_random_symmetric() {
+        const NPROB: usize = 100;
+        const MAXN: usize = 10000;
+        const MAXNNZ_FACTOR: usize = 10;
+
+        let mut state = RandomState::default();
+        let mut ptr = vec![0; MAXN + 1];
+        let mut row = vec![0; MAXNNZ_FACTOR * MAXN];
+        let mut val = vec![0.0; MAXNNZ_FACTOR * MAXN];
+
+        let matrix_type = MatrixType::RealSymIndef;
+        for prblm in 1..=NPROB {
+            let n = if prblm < 10 {
+                prblm
+            } else {
+                state.random_integer(MAXN)
+            };
+            if n == 0 {
+                continue;
+            }
+            let nnz = state.random_integer(min((n + 1) / 2, MAXNNZ_FACTOR) * n);
+            if nnz == 0 {
+                continue;
+            }
+            let nonsingular = state.random_integer(2) != 0;
+            let sort = state.random_integer(2) != 0;
+
+            println!(
+                " * no. {}, n = {}, nnz = {}, flags = {}{}",
+                prblm,
+                n,
+                nnz,
+                if nonsingular { 'T' } else { 'F' },
+                if sort { 'T' } else { 'F' }
+            );
+
+            let flag = random_matrix_generate(
+                &mut state,
+                matrix_type,
+                n,
+                n,
+                nnz,
+                &mut ptr,
+                &mut row,
+                Some(&mut val),
+                Some(nonsingular),
+                Some(sort),
+            );
+
+            if nonsingular && nnz < n {
+                assert_eq!(flag, ERROR_SINGULAR);
+            } else {
+                assert_eq!(flag, 0);
+                chk_random_symmetric(n, nnz, &ptr, &row, &val, nonsingular, sort);
+            }
+        }
+    }
+
+    fn chk_random_symmetric(
+        n: usize,
+        nnz: usize,
+        ptr: &[usize],
+        row: &[usize],
+        val: &[f64],
+        nonsingular: bool,
+        sort: bool,
+    ) {
+        assert_eq!(ptr[n], nnz + 1);
+
+        for i in 0..n {
+            assert!(ptr[i + 1] >= ptr[i]);
+            let mut dpresent = false;
+            for j in ptr[i]..ptr[i + 1] {
+                if row[j] == i {
+                    dpresent = true;
+                }
+                assert!(row[j] >= i && row[j] < n);
+                if sort && j > ptr[i] {
+                    assert!(row[j] > row[j - 1]);
+                }
+                assert!(val[j].abs() <= 1.0);
+            }
+            if nonsingular {
+                assert!(
+                    dpresent,
+                    "nonsingular requested but diagonal not present in column {}",
+                    i
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_random_unsymmetric() {
+        const NPROB: usize = 100;
+        const MAXN: usize = 10000;
+        const MAXNNZ_FACTOR: usize = 10;
+
+        let mut state = RandomState::default();
+        let mut ptr = vec![0; MAXN + 1];
+        let mut row = vec![0; MAXNNZ_FACTOR * MAXN];
+        let mut val = vec![0.0; MAXNNZ_FACTOR * MAXN];
+
+        let matrix_type = MatrixType::UNSPECIFIED;
+        for prblm in 1..=NPROB {
+            let (m, n) = if prblm < 10 {
+                (prblm, prblm + 1)
+            } else {
+                (state.random_integer(MAXN), state.random_integer(MAXN))
+            };
+            if m == 0 || n == 0 {
+                continue;
+            }
+            let nnz = state.random_integer(min((n + 1) / 2, MAXNNZ_FACTOR) * n);
+            if nnz == 0 {
+                continue;
+            }
+            let nonsingular = state.random_integer(2) != 0;
+            let sort = state.random_integer(2) != 0;
+
+            println!(
+                " * no. {}, m = {}, n = {}, nnz = {}, flags = {}{}",
+                prblm,
+                m,
+                n,
+                nnz,
+                if nonsingular { 'T' } else { 'F' },
+                if sort { 'T' } else { 'F' }
+            );
+
+            let flag = random_matrix_generate(
+                &mut state,
+                matrix_type,
+                m,
+                n,
+                nnz,
+                &mut ptr,
+                &mut row,
+                Some(&mut val),
+                Some(nonsingular),
+                Some(sort),
+            );
+
+            if nonsingular && nnz < min(m, n) {
+                assert_eq!(flag, ERROR_SINGULAR);
+            } else {
+                assert_eq!(flag, 0);
+                chk_random_unsymmetric(m, n, nnz, &ptr, &row, &val, nonsingular, sort);
+            }
+        }
+    }
+
+    fn chk_random_unsymmetric(
+        m: usize,
+        n: usize,
+        nnz: usize,
+        ptr: &[usize],
+        row: &[usize],
+        val: &[f64],
+        nonsingular: bool,
+        sort: bool,
+    ) {
+        assert_eq!(ptr[n], nnz);
+
+        for i in 0..n {
+            assert!(ptr[i + 1] >= ptr[i]);
+            for j in ptr[i]..ptr[i + 1] {
+                assert!(row[j] < m);
+                if sort && j > ptr[i] {
+                    assert!(row[j] > row[j - 1]);
+                }
+                assert!(val[j].abs() <= 1.0);
+            }
+        }
+
+        if nonsingular {
+            let mut rcnt = vec![0; m];
+            for i in 0..nnz {
+                rcnt[row[i]] += 1;
+            }
+            let non_empty_rows = rcnt.iter().filter(|&&c| c > 0).count();
+            assert!(non_empty_rows >= min(m, n));
+
+            let mut non_empty_cols = 0;
+            for i in 0..n {
+                if ptr[i + 1] > ptr[i] {
+                    non_empty_cols += 1;
+                }
+            }
+            assert!(non_empty_cols >= min(m, n));
         }
     }
 }

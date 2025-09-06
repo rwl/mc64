@@ -3,8 +3,6 @@ use crate::random::{random_matrix_generate, MatrixType, RandomState};
 mod auction;
 mod equilib;
 mod hungarian;
-mod random;
-mod random_matrix;
 
 struct MatrixData {
     n: usize,
