@@ -17,9 +17,6 @@ pub fn test_equilib_sym_random() {
         val: Vec::new(),
     };
 
-    let mut scaling = Vec::new();
-    let mut rinf = Vec::new();
-
     let options = EquilibOptions::default();
     let mut inform = EquilibInform::default();
 
@@ -55,8 +52,8 @@ pub fn test_equilib_sym_random() {
         a.row = vec![0; nza];
         a.val = vec![0.0; nza];
 
-        scaling.fill(0.0); // = vec![0.0; a.n];
-        rinf.fill(0.0); // = vec![0.0; a.n];
+        let mut scaling = vec![0.0; a.n];
+        let mut rinf = vec![0.0; a.n];
 
         gen_random_sym(&mut a, nza, &mut state, None);
 
@@ -108,10 +105,6 @@ fn test_equilib_unsym_random() {
         val: Vec::new(),
     };
 
-    let mut rscaling = Vec::new();
-    let mut cscaling = Vec::new();
-    let mut rinf = Vec::new();
-
     let options = EquilibOptions::default();
     let mut inform = EquilibInform::default();
 
@@ -156,9 +149,9 @@ fn test_equilib_unsym_random() {
         a.row = vec![0; nza];
         a.val = vec![0.0; nza];
 
-        rscaling.fill(0.0); // = vec![0.0; a.m];
-        cscaling.fill(0.0); // = vec![0.0; a.n];
-        rinf.fill(0.0); // = vec![0.0; a.m];
+        let mut rscaling = vec![0.0; a.m];
+        let mut cscaling = vec![0.0; a.n];
+        let mut rinf = vec![0.0; a.m];
 
         gen_random_unsym(&mut a, nza, &mut state);
 
@@ -178,7 +171,7 @@ fn test_equilib_unsym_random() {
 
         // Ensure inf norm of all scaled rows is close to 1.0
         rinf.fill(0.0);
-        for i in 0..a.m {
+        for i in 0..a.n {
             if a.ptr[i] == a.ptr[i + 1] {
                 continue; // Empty column
             }
@@ -188,7 +181,7 @@ fn test_equilib_unsym_random() {
                 c_max = f64::max(c_max, v);
                 rinf[a.row[j]] = f64::max(rinf[a.row[j]], v);
             }
-            assert!(1.0 - c_max <= 0.05, "cinf({}) = {:.4e}", i + 1, c_max);
+            assert!(1.0 - c_max <= 0.05, "cinf[{}] = {:.4e}", i, c_max);
         }
 
         for i in 0..a.m {
@@ -203,7 +196,7 @@ fn test_equilib_unsym_random() {
                     })
                     .sum();
 
-                assert!(r_cnt <= 0, "rinf({}) = {:.4e}", i + 1, rinf[i]);
+                assert!(r_cnt == 0, "rinf[{}] = {:.4e}", i, rinf[i]);
             }
         }
     }

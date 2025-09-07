@@ -21,11 +21,6 @@ fn test_auction_sym_random() {
         val: Vec::new(),
     };
 
-    let mut scaling = Vec::new();
-    let mut match_result = Vec::new();
-    let mut rmax = Vec::new();
-    let mut cnt = Vec::new();
-
     let options = AuctionOptions::default();
     let mut inform = AuctionInform::default();
 
@@ -58,10 +53,10 @@ fn test_auction_sym_random() {
         a.row = vec![0; nza];
         a.val = vec![0.0; nza];
 
-        scaling.fill(0.0); // = vec![0.0; a.n];
-        match_result.fill(0); // = vec![0; a.n];
-        rmax.fill(0.0); // = vec![0.0; a.n];
-        cnt.fill(0); // = vec![0; a.n];
+        let mut scaling = vec![0.0; a.n];
+        let mut match_result = vec![0; a.n];
+        let mut rmax = vec![0.0; a.n];
+        let mut cnt = vec![0; a.n];
 
         gen_random_sym(&mut a, nza, &mut state, None);
 
@@ -83,9 +78,10 @@ fn test_auction_sym_random() {
         cnt.fill(0);
 
         for i in 0..a.n {
-            let j = match_result[i] as usize;
-            assert!(j < a.n, "match[{}] = {}", i, j);
-            if j != 0 {
+            let j = match_result[i];
+            assert!(j >= -1 && j < a.n as i32, "match[{}] = {}", i, j);
+            if j != -1 {
+                let j = j as usize;
                 cnt[j] += 1;
                 nmatch += 1;
                 assert!(
@@ -145,11 +141,11 @@ fn test_auction_unsym_random() {
         val: Vec::new(),
     };
 
-    let mut rscaling = Vec::new();
-    let mut cscaling = Vec::new();
-    let mut match_result = Vec::new();
-    let mut rmax = Vec::new();
-    let mut cnt = Vec::new();
+    // let mut rscaling = Vec::new();
+    // let mut cscaling = Vec::new();
+    // let mut match_result = Vec::new();
+    // let mut rmax = Vec::new();
+    // let mut cnt = Vec::new();
 
     // let mut state = INITIAL_SEED;
     let mut state = RandomState::default();
@@ -176,11 +172,11 @@ fn test_auction_unsym_random() {
         a.row = vec![0; nza];
         a.val = vec![0.0; nza];
 
-        rscaling.fill(0.0); // = vec![0.0; a.m];
-        cscaling.fill(0.0); // = vec![0.0; a.n];
-        match_result.fill(0); // = vec![0; a.m];
-        rmax.fill(0.0); // = vec![0.0; a.m];
-        cnt.fill(0); // = vec![0; a.n];
+        let mut rscaling = vec![0.0; a.m];
+        let mut cscaling = vec![0.0; a.n];
+        let mut match_result = vec![0; a.m];
+        let mut rmax = vec![0.0; a.m];
+        let mut cnt = vec![0; a.n];
 
         gen_random_unsym(&mut a, nza, &mut state);
 
@@ -206,9 +202,10 @@ fn test_auction_unsym_random() {
         cnt.fill(0);
 
         for i in 0..a.m {
-            let j = match_result[i] as usize;
-            assert!(j < a.n, "match({}) = {}", i, j);
-            if j != 0 {
+            let j = match_result[i];
+            assert!(j >= -1 && j < a.n as i32, "match({}) = {}", i, j);
+            if j != -1 {
+                let j = j as usize;
                 cnt[j] += 1;
                 nmatch += 1;
                 assert!(

@@ -52,8 +52,8 @@ pub(crate) fn match_postproc(
 
         // For each unmatched col, scale max entry to 1.0
         for i in 0..n {
-            let colmax = ((ptr[i] - 1)..(ptr[i + 1] - 1))
-                .map(|j| (val[j] * rscaling[row[j] - 1].exp()).abs())
+            let colmax = (ptr[i]..ptr[i + 1])
+                .map(|j| (val[j] * rscaling[row[j]].exp()).abs())
                 .fold(0.0, f64::max);
             cmax[i] = if colmax == 0.0 {
                 0.0
@@ -93,9 +93,9 @@ pub(crate) fn match_postproc(
 
         // Find max column-scaled value in each row from unmatched cols
         for i in 0..n {
-            for j in (ptr[i] - 1)..(ptr[i + 1] - 1) {
+            for j in ptr[i]..ptr[i + 1] {
                 let v = (val[j] * cscaling[i].exp()).abs();
-                rmax[row[j] - 1] = f64::max(rmax[row[j] - 1], v);
+                rmax[row[j]] = f64::max(rmax[row[j]], v);
             }
         }
 

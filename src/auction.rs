@@ -176,22 +176,26 @@ fn auction_match_core(
     let ptr = &ptr[..n + 1];
     let row = &row[..ptr[n]];
     let val = &val[..ptr[n]];
-    let match_result = &mut match_result[..n];
-    let dualu = &mut dualu[..m];
-    let dualv = &mut dualv[..n];
+    let match_result = &mut match_result[..n]; // match(j) = i => column j matched to row i
+    let dualu = &mut dualu[..m]; // row dual variables
+    let dualv = &mut dualv[..n]; // col dual variables
 
     inform.flag = 0;
     inform.unmatchable = 0;
 
-    let mut owner = vec![n; m];
+    let mut owner = vec![n; m]; // Inverse of match
+
+    // The list next(:tail) is the search space of unmatched columns
+    // this is overwritten as we proceed such that next(:insert) is the
+    // search space for the subsequent iteration.
     let mut next = vec![0; n];
 
     let minmn = m.min(n);
-    let mut unmatched = minmn;
+    let mut unmatched = minmn; // Current number of unmatched cols
     match_result.fill(-1); // -1 = unmatched, -2 = unmatched+ineligible
 
-    let mut prev = usize::MAX;
-    let mut nunchanged = 0;
+    let mut prev = usize::MAX; // number of unmatched cols on previous iteration
+    let mut nunchanged = 0; // number of iterations where #unmatched cols has been constant
 
     // Initially all columns are unmatched
     let mut tail = n;
@@ -200,7 +204,7 @@ fn auction_match_core(
     }
 
     // Iterate until we run out of unmatched buyers
-    let mut eps = options.eps_initial;
+    let mut eps = options.eps_initial; // minimum improvement
     for itr in 0..options.max_iterations {
         if unmatched == 0 {
             break; // nothing left to match
@@ -321,10 +325,8 @@ fn auction_match(
     inform.flag = 0;
 
     // Reset ne for the expanded symmetric matrix
-    let mut ne = ptr[n]; // - 1;
-    if expand {
-        ne = 2 * ne - n;
-    }
+    let ne = ptr[n]; // - 1;
+    let ne = 2 * ne;
 
     // Expand matrix, drop explicit zeroes and take log absolute values
     let mut ptr2 = vec![0; n + 1];
@@ -334,18 +336,18 @@ fn auction_match(
     let mut cmatch = vec![0; n];
 
     let mut klong = 0;
-    ptr2[0] = 0;
     for i in 0..n {
-        for jlong in (ptr[i] - 1)..(ptr[i + 1] - 1) {
+        ptr2[i] = klong;
+        for jlong in ptr[i]..ptr[i + 1] {
             if val[jlong] == 0.0 {
                 continue;
             }
-            row2[klong] = row[jlong] - 1; // Use 0-based indexing
+            row2[klong] = row[jlong];
             val2[klong] = val[jlong].abs().ln();
             klong += 1;
         }
-        ptr2[i + 1] = klong;
     }
+    ptr2[n] = klong;
 
     if expand {
         if m != n {

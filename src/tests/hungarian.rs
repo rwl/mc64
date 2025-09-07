@@ -1,8 +1,6 @@
-// use crate::tests::spral::{random_integer, INITIAL_SEED};
 use crate::random::RandomState;
 use crate::tests::{gen_random_sym, gen_random_unsym, MatrixData};
 use crate::{hungarian_scale_sym, hungarian_scale_unsym, HungarianInform, HungarianOptions};
-// use spral::random::{random_integer, INITIAL_SEED};
 
 /// Test [hungarian_scale_sym] with singular matrix.
 #[test]
@@ -29,8 +27,8 @@ fn test_hungarian_sym_singular() {
 
     a.n = n;
     a.m = m;
-    a.ptr = vec![1, 2, 3, 3];
-    a.row = vec![1, 2];
+    a.ptr = vec![0, 1, 2, 2];
+    a.row = vec![0, 1];
     a.val = vec![2.0, 1.0];
 
     hungarian_scale_sym(
@@ -80,8 +78,8 @@ fn test_hungarian_unsym_singular() {
 
     a.n = n;
     a.m = m;
-    a.ptr = vec![1, 3, 5, 6, 6, 7];
-    a.row = vec![1, 2, 1, 2, 2, 2];
+    a.ptr = vec![0, 2, 4, 5, 5, 6];
+    a.row = vec![0, 1, 0, 1, 1, 1];
     a.val = vec![2.0, 1.0, 1.0, 4.0, 1.0, 1.0];
 
     hungarian_scale_unsym(
