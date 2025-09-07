@@ -129,3 +129,112 @@ pub(crate) fn half_to_full(
     }
     ptr[n] = newtau;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_half_to_full() {
+        // This test checks the expansion of a 4x4 symmetric matrix
+        // from its lower triangular representation.
+        //
+        // The matrix A is:
+        // | 10  1  0  2 |
+        // |  1 11  3  0 |
+        // |  0  3 12  4 |
+        // |  2  0  4 13 |
+        //
+        // The lower triangular part (L) in CSC format is used as input.
+        // Non-zero entries of L:
+        // Col 0: (0,0)=10, (1,0)=1, (3,0)=2
+        // Col 1: (1,1)=11, (2,1)=3
+        // Col 2: (2,2)=12, (3,2)=4
+        // Col 3: (3,3)=13
+
+        let n = 4;
+
+        // --- Test case 1: With numerical values ---
+        let mut row_with_a = vec![0, 1, 3, 1, 2, 2, 3, 3];
+        let mut ptr_with_a = vec![0, 3, 5, 7, 8, 0]; // ptr has size n+2 in mc64, extra space for safety
+        let mut a = vec![10.0, 1.0, 2.0, 11.0, 3.0, 12.0, 4.0, 13.0];
+        let mut iw = vec![0; n];
+
+        // The expanded structure will have 12 entries.
+        // old_nnz = 8, ndiag = 4, new_nnz = 2*8 - 4 = 12.
+        row_with_a.resize(12, 0);
+        a.resize(12, 0.0);
+
+        half_to_full(
+            n,
+            &mut row_with_a,
+            &mut ptr_with_a[..n + 1],
+            &mut iw,
+            Some(&mut a),
+        );
+
+        // Expected full matrix in CSC format.
+        // The function places upper triangular entries before lower triangular ones.
+        // Col 0: (0,0)=10, (1,0)=1, (3,0)=2
+        // Col 1: (0,1)=1, (1,1)=11, (2,1)=3
+        // Col 2: (1,2)=3, (2,2)=12, (3,2)=4
+        // Col 3: (0,3)=2, (2,3)=4, (3,3)=13
+        let expected_ptr = vec![0, 3, 6, 9, 12];
+        let expected_row = vec![0, 1, 3, 0, 1, 2, 1, 2, 3, 0, 2, 3];
+        let expected_a: Vec<f64> = vec![
+            10.0, 1.0, 2.0, 1.0, 11.0, 3.0, 3.0, 12.0, 4.0, 2.0, 4.0, 13.0,
+        ];
+
+        assert_eq!(&ptr_with_a[..n + 1], expected_ptr.as_slice());
+
+        // The order of elements within a column can vary after expansion,
+        // so we check column by column.
+        for j in 0..n {
+            let start = ptr_with_a[j];
+            let end = ptr_with_a[j + 1];
+            let mut col_entries: Vec<_> = row_with_a[start..end]
+                .iter()
+                .zip(&a[start..end])
+                .map(|(&r, &v)| (r, v.to_bits())) // Use to_bits for float comparison
+                .collect();
+            col_entries.sort_unstable_by_key(|k| k.0);
+
+            let expected_start = expected_ptr[j];
+            let expected_end = expected_ptr[j + 1];
+            let mut expected_col_entries: Vec<_> = expected_row[expected_start..expected_end]
+                .iter()
+                .zip(&expected_a[expected_start..expected_end])
+                .map(|(&r, &v)| (r, v.to_bits()))
+                .collect();
+            expected_col_entries.sort_unstable_by_key(|k| k.0);
+
+            assert_eq!(
+                col_entries, expected_col_entries,
+                "Mismatch in column {}",
+                j
+            );
+        }
+
+        // --- Test case 2: Without numerical values (structure only) ---
+        let mut row_only = vec![0, 1, 3, 1, 2, 2, 3, 3];
+        let mut ptr_only = vec![0, 3, 5, 7, 8, 0];
+        let mut iw2 = vec![0; n];
+        row_only.resize(12, 0);
+
+        half_to_full(n, &mut row_only, &mut ptr_only[..n + 1], &mut iw2, None);
+
+        assert_eq!(&ptr_only[..n + 1], expected_ptr.as_slice());
+
+        for j in 0..n {
+            let mut col_rows = row_only[ptr_only[j]..ptr_only[j + 1]].to_vec();
+            col_rows.sort_unstable();
+            let mut expected_col_rows = expected_row[expected_ptr[j]..expected_ptr[j + 1]].to_vec();
+            expected_col_rows.sort_unstable();
+            assert_eq!(
+                col_rows, expected_col_rows,
+                "Mismatch in column {} (structure only)",
+                j
+            );
+        }
+    }
+}
