@@ -9,17 +9,8 @@ fn test_auction_sym_random() {
     let max_nz = 1000000;
     let n_prob = 100;
 
-    // let mut rng = rand::thread_rng();
-    // let mut state = INITIAL_SEED;
     let mut state = RandomState::default();
-
-    let mut a = MatrixData {
-        n: 0,
-        m: 0,
-        ptr: Vec::new(),
-        row: Vec::new(),
-        val: Vec::new(),
-    };
+    let mut a = MatrixData::default();
 
     let options = AuctionOptions::default();
     let mut inform = AuctionInform::default();
@@ -133,21 +124,7 @@ fn test_auction_unsym_random() {
     const MAX_TOL: f64 = 0.01; // How much less than 1.0 can col max be?
     const MAX_EXCEPT: f64 = 0.05; // proportion of bad entries allowed
 
-    let mut a = MatrixData {
-        n: 0,
-        m: 0,
-        ptr: Vec::new(),
-        row: Vec::new(),
-        val: Vec::new(),
-    };
-
-    // let mut rscaling = Vec::new();
-    // let mut cscaling = Vec::new();
-    // let mut match_result = Vec::new();
-    // let mut rmax = Vec::new();
-    // let mut cnt = Vec::new();
-
-    // let mut state = INITIAL_SEED;
+    let mut a = MatrixData::default();
     let mut state = RandomState::default();
 
     for prblm in 1..=N_PROB {

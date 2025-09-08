@@ -170,7 +170,7 @@ fn hungarian_wrapper(
 
     inform.flag = 0;
     inform.stat = 0;
-    let mut ne = ptr[n]; // - 1; zero-based
+    let mut ne = ptr[n];
 
     // Reset ne for the expanded symmetric matrix
     ne = 2 * ne;
@@ -296,8 +296,7 @@ fn hungarian_wrapper(
             // original index for k
             old_to_new[i] = k as i32;
             new_to_old[k] = i;
-
-            k += 1; // TODO: double check
+            k += 1;
         }
     }
 
@@ -323,7 +322,7 @@ fn hungarian_wrapper(
             val2[ne] = val2[jlong];
             ne += 1;
         }
-        ptr2[k] = ne; // TODO: check k
+        ptr2[k] = ne;
     }
     // nn is order of non-singular part.
     let nn = k;

@@ -264,7 +264,9 @@ fn auction_match_core(
                 dualu[bestr] += bestu - bestv + eps;
                 dualv[col] = bestv - eps; // satisfy a_ij - u_i - v_j = 0
                 match_result[col] = bestr as i32;
-                unmatched -= 1;
+                if unmatched > 0 { // guard underflow
+                    unmatched -= 1;
+                }
                 let k = owner[bestr];
                 owner[bestr] = col;
                 if k != n {
@@ -277,7 +279,9 @@ fn auction_match_core(
             } else {
                 // No net benefit, mark col as ineligible for future consideration
                 match_result[col] = -2; // ineligible
-                unmatched -= 1;
+                if unmatched > 0 { // guard underflow
+                    unmatched -= 1;
+                }
                 inform.unmatchable += 1;
             }
         }
