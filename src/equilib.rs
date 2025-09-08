@@ -61,7 +61,7 @@ pub fn equilib_scale_sym(
     let mut maxentry = vec![0.0; n];
 
     scaling.fill(1.0);
-
+    let mut iterations_performed: usize = 0;
     for itr in 1..=options.max_iterations {
         // Find maximum entry in each row and col
         // Recall: matrix is symmetric, but we only have half
@@ -93,9 +93,9 @@ pub fn equilib_scale_sym(
         {
             break;
         }
-
-        inform.iterations = itr;
+        iterations_performed = itr;
     }
+    inform.iterations = iterations_performed;
 }
 
 /// Find a matching-based unsymmetric scaling using the norm-equilibration algorithm.
@@ -130,8 +130,8 @@ pub fn equilib_scale_unsym(
 
     rscaling.fill(1.0);
     cscaling.fill(1.0);
-
-    for itr in 1..options.max_iterations {
+    let mut iterations_performed: usize = 0;
+    for itr in 1..=options.max_iterations {
         // Find maximum entry in each row and col
         rmaxentry.fill(0.0);
         cmaxentry.fill(0.0);
@@ -170,7 +170,7 @@ pub fn equilib_scale_unsym(
         if rmax_diff < options.tol && cmax_diff < options.tol {
             break;
         }
-
-        inform.iterations = itr;
+        iterations_performed = itr;
     }
+    inform.iterations = iterations_performed;
 }

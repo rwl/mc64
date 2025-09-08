@@ -4,6 +4,7 @@ mod auction;
 mod equilib;
 mod hungarian;
 
+#[derive(Default)]
 struct MatrixData {
     n: usize,
     m: usize,

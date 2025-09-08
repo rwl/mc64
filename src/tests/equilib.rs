@@ -9,18 +9,11 @@ pub fn test_equilib_sym_random() {
     let max_nz = 1000000;
     let n_prob = 100;
 
-    let mut a = MatrixData {
-        n: 0,
-        m: 0,
-        ptr: Vec::new(),
-        row: Vec::new(),
-        val: Vec::new(),
-    };
+    let mut a = MatrixData::default();
 
     let options = EquilibOptions::default();
     let mut inform = EquilibInform::default();
 
-    // let mut state = INITIAL_SEED;
     let mut state = RandomState::default();
 
     for prblm in 1..=n_prob {
@@ -82,7 +75,7 @@ pub fn test_equilib_sym_random() {
         }
 
         for i in 0..a.n {
-            assert!((1.0 - rinf[i]) <= 0.05, "rinf({}) = {:.4e}", i, rinf[i]);
+            assert!((1.0 - rinf[i]) <= 0.05, "rinf[{}] = {:.4e}", i, rinf[i]);
         }
     }
 }
@@ -94,16 +87,9 @@ fn test_equilib_unsym_random() {
     let max_nz = 1000000;
     let n_prob = 100;
 
-    // let mut state = INITIAL_SEED;
     let mut state = RandomState::default();
 
-    let mut a = MatrixData {
-        n: 0,
-        m: 0,
-        ptr: Vec::new(),
-        row: Vec::new(),
-        val: Vec::new(),
-    };
+    let mut a = MatrixData::default();
 
     let options = EquilibOptions::default();
     let mut inform = EquilibInform::default();
@@ -112,14 +98,14 @@ fn test_equilib_unsym_random() {
         // Generate parameters
         a.n = state.random_integer(max_n);
         a.m = state.random_integer(max_n);
-        if state.random_integer(2) == 1 {
+        if state.random_integer(2) == 0 {
             a.m = a.n; // 50% chance of unsym vs rect
         }
         if prblm < 21 {
             a.n = prblm; // check very small problems
             a.m = prblm;
         }
-        let i = (a.m * a.n / 2)
+        let i = ((a.m * a.n) / 2)
             .checked_sub(usize::max(a.m, a.n))
             .unwrap_or(0);
         let nza = usize::max(a.m, a.n) + state.random_integer(i);
