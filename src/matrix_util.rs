@@ -130,6 +130,164 @@ pub(crate) fn half_to_full(
     ptr[n] = newtau;
 }
 
+#[derive(Clone, Copy, Debug)]
+#[repr(i32)]
+pub enum MatrixType {
+    Unspecified = 0,
+    RealRect = 1,
+    RealUnsym = 2,
+    RealSymPsdef = 3,
+    RealSymIndef = 4,
+    RealSkew = 6,
+}
+
+fn digit_format(x: usize) -> usize {
+    if x == 0 {
+        1
+    } else {
+        (x as f64).log10().floor() as usize + 1
+    }
+}
+
+pub fn print_matrix(
+    lines: i32,
+    matrix_type: MatrixType,
+    m: usize,
+    n: usize,
+    ptr: &[usize],
+    row: &[usize],
+    val: Option<&[f64]>,
+) {
+    let mut llines = i32::MAX;
+    if lines > 0 {
+        llines = lines;
+    }
+
+    let m_width = digit_format(m);
+    let n_width = digit_format(n);
+
+    let type_str = match matrix_type {
+        MatrixType::Unspecified => "Matrix of undefined type",
+        MatrixType::RealRect => "Real rectangular matrix",
+        MatrixType::RealUnsym => "Real unsymmetric matrix",
+        MatrixType::RealSymPsdef => "Real symmetric positive definite matrix",
+        MatrixType::RealSymIndef => "Real symmetric indefinite matrix",
+        MatrixType::RealSkew => "Real skew symmetric matrix",
+    };
+
+    println!(
+        "{}, dimension {}x{} with {} entries.",
+        type_str, m, n, ptr[n],
+    );
+
+    if m == 0 || n == 0 {
+        return;
+    }
+
+    let print_dense = if val.is_some() { n < 10 } else { n < 24 } && (m + 1) as i32 <= llines;
+
+    if print_dense {
+        let mut dmat = vec![vec![0isize; n]; m];
+        for col in 0..n {
+            for j in ptr[col]..ptr[col + 1] {
+                let r = row[j];
+                if r >= m {
+                    continue;
+                }
+
+                match matrix_type {
+                    MatrixType::RealSymPsdef | MatrixType::RealSymIndef | MatrixType::RealSkew => {
+                        if r != col {
+                            dmat[col][r] = -(j as isize + 1);
+                        }
+                    }
+                    _ => {}
+                }
+                dmat[r][col] = j as isize + 1;
+            }
+        }
+
+        let (val_width, val_prec, neg_val_prec, empty_char) = match n {
+            0..=6 => (12, 4, 4, "            "),
+            7 => (10, 2, 2, "          "),
+            _ => (8, 2, 1, "        "),
+        };
+
+        for r in 0..m {
+            print!("{:width$}:", r, width = m_width);
+            if let Some(val_data) = val {
+                for c in 0..n {
+                    let entry = dmat[r][c];
+                    if entry == 0 {
+                        print!("{}", empty_char);
+                    } else {
+                        let val_idx = (entry.abs() - 1) as usize;
+                        let v = if entry > 0 {
+                            val_data[val_idx]
+                        } else {
+                            match matrix_type {
+                                MatrixType::RealSkew => -val_data[val_idx],
+                                _ => val_data[val_idx],
+                            }
+                        };
+
+                        let prec = if v < 0.0 { neg_val_prec } else { val_prec };
+
+                        let v_str = if v == 0.0 {
+                            format!(" {:width$.prec$E}", 0.0, width = val_width - 1, prec = prec)
+                        } else {
+                            let mut exponent = v.abs().log10().floor() as i32;
+                            let mut mantissa = v / 10f64.powi(exponent);
+
+                            if (mantissa - 10.0).abs() < 10.0_f64.powi(-(prec as i32) - 1) {
+                                mantissa = 1.0;
+                                exponent += 1;
+                            }
+
+                            let mut formatted =
+                                format!("{:.prec$}E{:+03}", mantissa, exponent, prec = prec);
+                            if !v.is_sign_negative() {
+                                formatted.insert(0, ' ');
+                            }
+                            formatted
+                        };
+                        print!("{:>width$}", v_str, width = val_width);
+                    }
+                }
+            } else {
+                // Pattern only
+                for c in 0..n {
+                    if dmat[r][c] == 0 {
+                        print!("  ");
+                    } else {
+                        print!(" x");
+                    }
+                }
+            }
+            println!();
+        }
+    } else {
+        llines -= 1; // Account for info line
+        if llines <= 2 {
+            return;
+        }
+        println!("First 4 entries in columns:");
+        llines -= 1;
+        for col in 0..n.min(llines as usize) {
+            print!("Col {:n_width$}:", col, n_width = n_width);
+            let start = ptr[col];
+            let end = (ptr[col + 1]).min(start + 4);
+            for j in start..end {
+                print!("  {:m_width$}", row[j], m_width = m_width);
+                if let Some(val_data) = val {
+                    print!(" ({:12.4E})", val_data[j]);
+                }
+            }
+            println!();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

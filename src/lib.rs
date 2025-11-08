@@ -45,6 +45,7 @@ pub use auction::*;
 pub use equilib::*;
 pub use errcode::*;
 pub use hungarian::*;
+pub use matrix_util::*;
 
 /// Calculate scaled symmetric matrix.
 pub fn scale_matrix_sym(n: usize, ptr: &[usize], row: &[usize], val: &mut [f64], scaling: &[f64]) {
