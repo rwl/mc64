@@ -1,6 +1,6 @@
 use std::process::exit;
 
-use mc64::{hungarian_scale_unsym, HungarianInform, HungarianOptions};
+use mc64::{hungarian_scale_unsym, print_matrix, HungarianInform, HungarianOptions, MatrixType};
 
 fn main() {
     /* Derived types */
@@ -23,16 +23,7 @@ fn main() {
     let row = [0, 1, 0, 1, 2, 4, 3, 2, 1, 4];
     let mut val = [2.0, 1.0, 5.0, 4.0, 1.0, 8.0, 3.0, 2.0, 7.0, 2.0];
     println!("Initial matrix:");
-    // spral::matrix::print_matrix(
-    //     -1,
-    //     spral::matrix::MatrixType::RealUnsym,
-    //     m,
-    //     n,
-    //     &ptr,
-    //     &row,
-    //     &val,
-    //     0,
-    // ); TODO:
+    print_matrix(-1, MatrixType::RealUnsym, m, n, &ptr, &row, Some(&val));
 
     // Perform symmetric scaling
     // spral_scaling_hungarian_default_options(&options);
@@ -59,7 +50,7 @@ fn main() {
     }
 
     // Print scaling and matching
-    println!("Matching: {:?}", matching);
+    println!("Matching:    {:?}", matching);
     println!("Row Scaling: {:?}", rscaling);
     println!("Col Scaling: {:?}", cscaling);
 
@@ -70,14 +61,5 @@ fn main() {
         }
     }
     println!("Scaled matrix:");
-    // spral::matrix::print_matrix(
-    //     -1,
-    //     spral::matrix::MatrixType::RealUnsym,
-    //     m,
-    //     n,
-    //     &ptr,
-    //     &row,
-    //     &val,
-    //     0,
-    // ); TODO:
+    print_matrix(-1, MatrixType::RealUnsym, m, n, &ptr, &row, Some(&val));
 }
